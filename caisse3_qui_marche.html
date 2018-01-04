@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<!--http://stackoverflow.com/questions/16501459/javascript-searching-indexeddb-using-multiple-indexes
+   //http://www.journaldunet.com/developpeur/pratique/developpement/17902/angular-js-comment-executer-une-fonction-au-chargement-de-la-page.html
+
+-->
+<!-- <html manifest="manifest_devise.mf">  -->
+
+<html >  
+  <head>
+	<link rel="stylesheet" type="text/css" href="css/style2.css" >
+    <link href="css/bootstrap.css" rel="stylesheet">
+	<script src="js/angular.js"></script>
+	<script src="js/ui-bootstrap-tpls-0.4.0.min.js"></script>
+    <script src="js/dirPagination.js"></script>
+	<script src="js/jquery.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+	<script src="js/angular-indexed-db.js"></script>
+	<script src="js/accounting.min.js"></script> <!-- http://openexchangerates.github.io/accounting.js/#download -->
+	<script>
+	var js_produit=[];
+	var js_liste_caisse=[];
+	var js_panier=[];
+	var run=0;
+	//var FCFA={cours:650,sigle:"FCFA",precision:10};
+	var FCFA={};
+	//var app = angular.module('myApp', ['datacontroller']);
+	var app = angular.module('myApp',['angularUtils.directives.dirPagination','indexedDB']);
+	app.config(function ($indexedDBProvider) {
+		$indexedDBProvider
+		  .connection('caisse_onboard')
+		  .upgradeDatabase("5", function(event, db, tx){
+			// pour la mise Ã  jour produit il faut qu'un produit existe
+			if (db.objectStoreNames.contains('ticket_caisse')){db.deleteObjectStore('ticket_caisse')};
+			var objStore = db.createObjectStore('ticket_caisse', {autoIncrement : true});
+			objStore.createIndex('rot','rot', {unique: false});
+			//objStore.createIndex('rot,novol,date', ['rot','novol','date'], { unique: false });
+			//objStore.createIndex('rot','rot', { unique: false });
+
+			if (db.objectStoreNames.contains('vol')){db.deleteObjectStore('vol')};
+			var objStore = db.createObjectStore('vol', {keyPath: 'rot'});
+			objStore.createIndex('rot', ['rot'], { unique: true });
+			
+			if (db.objectStoreNames.contains('pnc')){db.deleteObjectStore('pnc')};
+			var objStore = db.createObjectStore('pnc', {keyPath: 'rot'});
+			objStore.createIndex('rot', ['rot'], { unique: true });
+		
+		
+			if (db.objectStoreNames.contains('produit')){db.deleteObjectStore('produit')};
+			var objStore = db.createObjectStore('produit', {keyPath: 'pr_cd_pr'});
+			objStore.add({"pr_cd_pr":"3351500000418","pr_desi":"APH EDT SPRAY ECO REFILL","pr_prx_vte":54.00,"pr_famille":'null'});
+			
+			if (db.objectStoreNames.contains('devise')){db.deleteObjectStore('devise');}
+			var objStore = db.createObjectStore('devise', {autoIncrement : true});
+			objStore.add({devise:1,sigle:"€",precision:2});
+			
+			if (db.objectStoreNames.contains('panier_caisse')){db.deleteObjectStore('panier_caisse')};
+			var objStore = db.createObjectStore("panier_caisse", { autoIncrement : true });
+			objStore.createIndex('no_cde', 'no_cde', {unique: false});
+			objStore.createIndex('rot', 'rot', {unique: false});
+			objStore.createIndex('rot,novol,date', ['rot','novol','date'], { unique: false });
+		});
+	});
+	app.controller('caisseCtrl', function($scope, $http,$indexedDB) {
+		$scope.version="V1";
+		$scope.phase="run";
+		run=1;
+		
+		 <!-- $scope.currentPage = 1; -->
+  <!-- $scope.pageSize = 10; -->
+  <!-- $scope.collection = []; -->
+  <!-- for (var i = 1; i <= 12; i++) { -->
+    <!-- $scope.collection.push('item ' + i); -->
+  <!-- } -->
+		
+		
+	//$scope.rot=localStorage.getItem("rot");
+		//$scope.vol=localStorage.getItem("vol");
+		$scope.total={ttc:0,tva:0,ht:0};
+		//$scope.scan_data="";
+		$scope.no_cde=0;
+		$scope.panier=[];
+		$scope.panierh=[];
+		$scope.produit=[];
+		$scope.liste_pnc=[];
+		$scope.tri="";
+		$scope.date=get_date();
+		$scope.destination_liste=[{tri:"ABJ",desi:"ABIDJAN"},{tri:"ACC",desi:"ACCRA"},{tri:"ADD",desi:"ADDIS-ABEBA"},{tri:"ALG",desi:"ALGER"},{tri:"BKO",desi:"BAMAKO"},{tri:"BGF",desi:"BANGUI"},{tri:"BSG",desi:"BATA"},{tri:"BZV",desi:"BRAZZAVILLE"},{tri:"BRU",desi:"BRUXELLES"},{tri:"CPT",desi:"CAPETOWN"},{tri:"CMN",desi:"CASABLANCA"},{tri:"COO",desi:"COTONOU"},{tri:"DKR",desi:"DAKAR"},{tri:"IST",desi:"ISTANBUL"},{tri:"JNB",desi:"JOHANNESBOURG"},{tri:"KGL",desi:"KIGALI"},{tri:"FIH",desi:"KINSHASA"},{tri:"LOS",desi:"LAGOS"},{tri:"LBV",desi:"LIBREVILLE"},{tri:"LFW",desi:"LOME"},{tri:"SSG",desi:"MALABO"},{tri:"NBO",desi:"NAIROBI"},{tri:"NDJ",desi:"NDJAMENA"},{tri:"CDG",desi:"PARISCDG"},{tri:"ORY",desi:"PARISORLY"},{tri:"LAD",desi:"LUANDA"},{tri:"PNR",desi:"POINTE-NOIRE"},{tri:"POG",desi:"PORT-GENTIL"},{tri:"TMS",desi:"SAOTOMEETPRINCIPE"}]; 
+		$scope.devise=[{montant:0,devise:0,montantdev:0}];
+		$scope.liste_caisse={especes:0,cb:0,cheque:0,avoir:0};
+		$scope.liste_ticket=[];
+		$scope.ticket_run=0;
+		$scope.last_no_cde=0;
+		$scope.encaissement={especes:{montant:0,devise:0,montantdev:0},cb:{montant:0,devise:0,montantdev:0},cheque:{montant:0,devise:0,montantdev:0},avoir:{montant:0,devise:0,montantdev:0}};
+		$scope.remise=0;
+		$scope.du={montant:0,devise:0,montantdev:0};
+		//$scope.rot=sessionStorage.getItem("rot");
+		$scope.phase="run";
+		$scope.client={nom:"",vol:"",destination:"",passeport:"",nationalite:"",novol:""};
+		$scope.message="";
+		//$scope.vol={rot:-1,novol:"",dep:"",arr:""};
+		//$scope.devise=[{cours:1,sigle:"€",precision:2},{cours:3,sigle:"$",precision:2}];
+		//console.log($scope.devise);
+		$scope.arendre={montant:0,devise:1,montantdev:0};				
+		$scope.montant={especes:0,cb:0,cheque:0,avoir:0,rendu:0};
+		$scope.vide=false;
+		i=0;
+		$indexedDB.openStore("produit",function(store){
+			store.getAll().then(function(results) {  
+				$scope.produit = results;
+				var pass=0;
+				for (var prod in results){
+					js_produit[results[prod].pr_cd_pr]=results[prod];
+					pass=1;
+				}
+				if (pass==0){$scope.vide=true;}
+			});
+		});
+		$indexedDB.openStore("devise",function(store){
+			store.getAll().then(function(results) {  
+				$scope.devise = results;
+				//console.log($scope.devise);
+				FCFA=$scope.devise[1];
+			});
+		});
+		
+		$indexedDB.openStore("vol",function(store){
+			store.getAll().then(function(results) {  
+				$scope.rot=0;
+				$scope.novol="";
+				$scope.dep="";
+				$scope.arr="";
+				for (var index in results){
+					if (results[index].rot>$scope.rot){
+						$scope.rot=results[index].rot;
+						if (results[index].etat=='F'){
+							$scope.novol="";
+							$scope.dep="";
+							$scope.arr="";
+						}
+						else {					
+							$scope.novol=results[index].novol;
+							$scope.dep=results[index].dep;
+							$scope.arr=results[index].arr;
+							$scope.rot--;
+						}
+					}
+				}
+				$scope.rot++;
+				if (! $scope.novol) {$scope.phase="login";$scope.no_cde=1;}
+				else {
+						$indexedDB.openStore("panier_caisse",function(store){
+						var find = store.query(); 
+						find = find.$eq($scope.rot);
+						find = find.$index(["rot"]);
+						store.eachWhere(find).then(function(results){ 
+							$scope.no_cde=0;
+							for (var index in results){
+								if (results[index].no_cde>$scope.no_cde){$scope.no_cde=results[index].no_cde;}
+							}
+							$scope.no_cde++;
+						});
+					});	
+				}
+			});
+		});	
+		
+		<!-- $indexedDB.openStore("ticket_caisse",function(store){ -->
+			<!-- var find = store.query();  -->
+			<!-- find = find.$eq($scope.rot); -->
+			<!-- store.eachWhere(find).then(function(results){  -->
+				<!-- $scope.no_cde=0; -->
+				<!-- for (var index in results){ -->
+					<!-- if (results[index].no_cde>$scope.no_cde){$scope.no_cde=results[index].no_cde;} -->
+				<!-- } -->
+				<!-- $scope.no_cde++; -->
+			<!-- }); -->
+		<!-- });	 -->
+		$scope.print=function(){
+			window.print();
+		}	
+		$scope.fenetre=function(action){
+			if (action=="encaisse"){
+				$scope.date=get_date();
+				document.getElementById("boutique").style.display="none";
+				document.getElementById("encaisse").style.display="block";
+				document.getElementById("panier").style.pointerEvents = "none";
+				document.getElementById("panier").style.display = "none";
+				document.getElementById("facture").style.display = "block";
+				document.getElementById("etat_caisse").style.display="none";
+				document.getElementById("liste_pnc").style.display="none";
+				$scope.du.montant=$scope.total.ht;
+				$scope.du.montantdev=$scope.total.ht;
+				$scope.encaissement={especes:{montant:0,devise:0,montantdev:0},cb:{montant:0,devise:0,montantdev:0},cheque:{montant:0,devise:0,montantdev:0},avoir:{montant:0,devise:0,montantdev:0}};
+				$scope.arendre={montant:0,devise:1,montantdev:0};				
+			}
+			if (action=="boutique"){
+				document.getElementById("encaisse").style.display="none";
+				document.getElementById("historique").style.display="none";
+				document.getElementById("detail_ticket").style.display="none";
+				document.getElementById("facture").style.display = "none";
+				document.getElementById("boutique").style.display="block";
+				document.getElementById("boutique").style.pointerEvents = "";
+				document.getElementById("panier").style.display="block";
+				document.getElementById("panier").style.pointerEvents = "";
+				document.getElementById("etat_caisse").style.display="none";
+				document.getElementById("liste_pnc").style.display="none";
+				$scope.du.devise=0;
+				//document.myForm.scan_data.focus();
+				
+			}
+			if (action=="historique"){
+				document.getElementById("historique").style.display="block";
+				document.getElementById("boutique").style.display="none";
+				document.getElementById("facture").style.display = "none";
+				document.getElementById("encaisse").style.display="none";
+				document.getElementById("panier").style.display = "none";
+				document.getElementById("etat_caisse").style.display="none";
+				document.getElementById("liste_pnc").style.display="none";
+				document.getElementById("detail_ticket").style.display="none";
+				document.getElementById("historique").style.pointerEvents = "";
+			}
+			if (action=="liste_pnc"){
+				document.getElementById("liste_pnc").style.display="block";
+				document.getElementById("historique").style.display="none";
+				document.getElementById("boutique").style.display="none";
+				document.getElementById("facture").style.display = "none";
+				document.getElementById("encaisse").style.display="none";
+				document.getElementById("etat_caisse").style.display="none";
+				document.getElementById("panier").style.display = "none";
+				document.getElementById("detail_ticket").style.display="none";
+				document.getElementById("liste_pnc").style.pointerEvents = "";
+			}
+			
+			if (action=="detail_ticket"){
+				document.getElementById("historique").style.display="none";
+				document.getElementById("boutique").style.display="none";
+				document.getElementById("panier").style.pointerEvents = "none";
+				document.getElementById("facture").style.display = "none";
+				document.getElementById("etat_caisse").style.pointerEvents = "none";
+				document.getElementById("liste_pnc").style.display="none";
+				document.getElementById("detail_ticket").style.pointerEvents = "";
+				document.getElementById("detail_ticket").style.display="block";
+			}
+			if (action=="etat_caisse"){
+				document.getElementById("historique").style.display="none";
+				document.getElementById("boutique").style.display="block";
+				document.getElementById("boutique").style.pointerEvents = "none";
+				document.getElementById("facture").style.display = "none";
+				document.getElementById("etat_caisse").style.pointerEvents = "";
+				document.getElementById("liste_pnc").style.display="none";
+				document.getElementById("panier").style.display = "none";
+				document.getElementById("detail_ticket").style.display="none";
+				document.getElementById("etat_caisse").style.display="block";
+			}
+	
+		}
+	
+		$scope.remisef=function(action){
+			if (action=="moins"){$scope.remise-=5;}else {$scope.remise+=5;}
+			$scope.total=somme_panier($scope.remise);
+		}	
+		$scope.add=function(pr_cd_pr){
+			trouve=0;
+			js_panier.forEach(function(obj,index){
+				if (obj.code==pr_cd_pr){
+					js_panier[index].qte++;
+					$scope.panier[index].qte++;
+					trouve=1;
+				}
+			});
+			if (!trouve){
+				$scope.panier.push({code:pr_cd_pr,desi:js_produit[pr_cd_pr].pr_desi,prix:js_produit[pr_cd_pr].pr_prx_vte,qte:1});
+				js_panier.push({code:pr_cd_pr,desi:js_produit[pr_cd_pr].pr_desi,prix:js_produit[pr_cd_pr].pr_prx_vte,qte:1});
+			}
+			$scope.total=somme_panier($scope.remise);
+			//document.myForm.scan_data.focus();
+		};
+		
+		
+		
+		$scope.add_scan=function(barre){
+			trouve=0;
+			var pr_cd_pr=barre.$viewValue.split(" ");
+			//if (pr_cd_pr[0].charAt(0)=='0'){pr_cd_pr[0]=pr_cd_pr[0].substring(1,12);}
+			pr_cd_pr[0]=parseInt(pr_cd_pr[0]);
+			if (js_produit[pr_cd_pr[0]]){
+				$scope.add(pr_cd_pr[0]);
+				/*
+				js_panier.forEach(function(obj,index){
+					if (obj.code==pr_cd_pr[0]){
+						js_panier[index].qte++;
+						$scope.panier[index].qte++;
+						trouve=1;
+					}
+				});
+				if (!trouve){
+					$scope.panier.push({code:pr_cd_pr[0],desi:js_produit[pr_cd_pr[0]].pr_desi,prix:js_produit[pr_cd_pr[0]].pr_prx_vte,qte:1});
+					js_panier.push({code:pr_cd_pr[0],desi:js_produit[pr_cd_pr[0]].pr_desi,prix:js_produit[pr_cd_pr[0]].pr_prx_vte,qte:1});
+				}
+				$scope.total=somme_panier($scope.remise);
+				*/
+				document.getElementById("inconnu").style.display="none";
+				
+			}
+			else {
+				document.getElementById("inconnu").style.display="inline-block";
+				$scope.code_inconnu=pr_cd_pr[0];
+			}			
+			//document.myForm.scan_data.value="";;
+			//document.myForm.scan_data.focus();
+			
+		};
+
+		$scope.login=function(){
+			//var str=$scope.novol.split(" ");
+			//$scope.novol=str[0];
+			$indexedDB.openStore('vol', function(store){
+				store.delete($scope.rot);
+				store.insert({"rot":$scope.rot,"novol":$scope.novol,"dep":$scope.dep,"arr":$scope.arr,"etat":"R"});
+			});
+			$scope.phase="run";
+			run=1;
+		}
+		$scope.fin_de_service=function(){
+			$indexedDB.openStore('vol', function(store){
+				store.delete($scope.rot);
+				store.insert({"rot":$scope.rot,"novol":$scope.novol,"dep":$scope.dep,"arr":$scope.arr,"etat":"F"});
+			});
+			location.reload(); 
+		}
+		$scope.debloque=function(){
+			$scope.rot--;
+			$indexedDB.openStore("vol",function(store){ 
+				var find = store.query(); 
+				find = find.$eq($scope.rot);
+				store.eachWhere(find).then(function(results){ 
+					$scope.novol=results[0].novol;
+					$scope.dep=results[0].dep;
+					$scope.arr=results[0].arr;
+				});
+				store.delete($scope.rot);
+				console.log($scope.rot);
+				store.insert({"rot":$scope.rot,"novol":$scope.novol,"dep":$scope.dep,"arr":$scope.arr,"etat":"R"});
+			});	
+			//location.reload(); 
+		}
+		
+		
+		
+		$scope.add_pnc=function(){
+			$scope.message="";
+		    if ($scope.tri.length==3){
+				var equipage="";
+				$indexedDB.openStore('pnc', function(store){
+					store.delete($scope.rot);
+					$scope.liste_pnc.push({"tri":$scope.tri});
+					//console.log($scope.liste_pnc);
+					$scope.liste_pnc.forEach(function(obj,index){
+						//console.log("ici"+obj.tri);
+						equipage+=obj.tri+":";
+					});
+					store.insert({"rot":$scope.rot,"tri":equipage});
+					//console.log(equipage);
+					$scope.tri="";			
+				});
+				<!-- $indexedDB.openStore("pnc",function(store){ -->
+					<!-- store.getAll().then(function(results) {   -->
+						<!-- $scope.liste_pnc = results; -->
+						<!-- console.log(results); -->
+					<!-- }); -->
+				<!-- }); -->
+	      }
+			else {$scope.message="Trigramme Invalide";}
+		}
+		$scope.sup=function(pr_cd_pr){
+			js_panier=js_panier.filter(function(obj){
+				if (obj.code==pr_cd_pr){return false;}else{return true;}
+			});
+			$scope.panier=$scope.panier.filter(function(obj){
+				if (obj.code==pr_cd_pr){return false;}else{return true;}
+			});
+			$scope.total=somme_panier($scope.remise);
+		};	
+		
+		$scope.sup_pnc=function(tri){
+			$scope.liste_pnc=$scope.liste_pnc.filter(function(obj){
+				if (obj.tri==tri){return false;}else{return true;}
+			});
+			$indexedDB.openStore("pnc",function(store){
+				store.delete($scope.rot);
+				var equipage="";
+				$scope.liste_pnc.forEach(function(obj,index){
+					equipage+=obj.tri+":";
+				});
+				store.insert({"rot":$scope.rot,"tri":equipage});
+				$scope.tri="";			
+	    	});
+		};	
+		$scope.majprod=function(){
+			//$http.post("http://127.0.0.1/caisse/maj_produit.php")
+			$http.post("http://aircotedivoire.oasix.fr/maj_produit_caisse.php")
+			.then(function (response) {	
+				console.log("maj_produit_caisse success");
+				console.log(response.data);
+				$indexedDB.openStore('produit', function(store){
+					store.clear().then(function(){
+						for (var i=0;i<response.data.length;i++){
+							store.insert(response.data[i]);
+						}
+						setInterval( function() {
+							alert("Update produit success");
+							window.location.reload();
+						}, 2000);	
+					});
+				});
+			},
+			function(){
+				console.log("maj_produit_caisse error");
+				//console.log(response);
+				alert("probleme de transfert du fichier produit");
+			
+			}		
+			);
+		};
+		$scope.majdevise=function(){
+			//$http.post("http://127.0.0.1/caisse/maj_devise.php")
+			$http.post("http://aircotedivoire.oasix.fr/maj_devise_caisse.php")
+			.then(function (response) {	
+				console.log("maj_devise_caisse.pl success");
+				//console.log(response.data.length);
+				$indexedDB.openStore('devise', function(store){
+					store.clear().then(function(){
+						for (var i=0;i<response.data.length;i++){
+							console.log(response.data[i]);
+							if (response.data[i].sigle=="E"){response.data[i].sigle="€";}
+							if (response.data[i].sigle=="L"){response.data[i].sigle="£";}
+							store.insert(response.data[i]);
+						}
+						setInterval( function() {
+							alert("Update devise success");
+							window.location.reload();
+						}, 5000);	
+					});
+				});
+			},
+			function(){
+				console.log("maj_devise_caisse.pl error");
+			}		
+			);
+		};
+
+			
+		$scope.etat_caisse=function(){
+			$indexedDB.openStore("ticket_caisse",function(store){
+				date=get_date();
+				$scope.date=date;				
+				$scope.especes=[];
+				$scope.cheque=[];
+				$scope.cb=[];
+				$scope.avoir=[];
+				$scope.rendu=0;
+				$scope.solde=[];
+				$scope.montant={especes:0,cb:0,cheque:0,avoir:0,rendu:0};
+				$scope.devise.forEach(function(obj,index){
+					$scope.especes.push({devise:index,montant:0,montantdev:0});
+					$scope.cheque.push({devise:index,montant:0,montantdev:0});
+					$scope.cb.push({devise:index,montant:0,montantdev:0});
+					$scope.avoir.push({devise:index,montant:0,montantdev:0});
+					//$scope.rendu.push({devise:index,montant:0,montantdev:0});
+					$scope.solde.push({devise:index,montant:0,montantdev:0});
+				});
+			
+				var find = store.query();
+				find = find.$eq([$scope.rot,$scope.novol,date.jour]);
+				find = find.$index(["rot","novol","date"]);
+				store.eachWhere(find).then(function(e){
+					for (var index in e){
+						if (e[index].sup==0){
+							$scope.especes[e[index].especes.devise].montantdev+=e[index].especes.montantdev*1;
+							$scope.solde[e[index].especes.devise].montantdev+=e[index].especes.montantdev*1;
+							$scope.cheque[e[index].cheque.devise].montantdev+=e[index].cheque.montantdev*1;
+							$scope.cb[e[index].cb.devise].montantdev+=e[index].cb.montantdev*1;
+							$scope.avoir[e[index].avoir.devise].montantdev+=e[index].avoir.montantdev*1;
+							//$scope.rendu[e[index].rendu.devise].montantdev+=e[index].rendu.montantdev*1;
+							//$scope.solde[e[index].rendu.devise].montantdev-=e[index].rendu.montantdev*1;
+							//$scope.rendu[1].montantdev+=e[index].rendu.montantdev*1;
+							$scope.rendu+=e[index].rendu.montantdev*1;
+							$scope.solde[1].montantdev-=e[index].rendu.montantdev*1;
+							$scope.montant.especes+=e[index].especes.montant*1;
+							$scope.montant.cheque+=e[index].cheque.montant*1;
+							$scope.montant.avoir+=e[index].avoir.montant*1;
+							$scope.montant.cb+=e[index].cb.montant*1;
+							$scope.montant.rendu+=e[index].rendu.montant*1;
+						}	
+					}
+				});
+			});
+			$scope.liste_pnc=[];
+			$indexedDB.openStore("pnc",function(store){ 
+				$scope.message="Merci de saisir l'equipage";
+				var find = store.query(); 
+				find = find.$eq($scope.rot);
+				//find = find.$index("rot");
+				store.eachWhere(find).then(function(results){ 
+					var crew=results[0].tri.split(":");
+					crew.forEach(function(obj,index){
+						if (obj.length==3){
+							$scope.liste_pnc.push({"tri":obj});
+							$scope.message="";
+						}
+					});	
+				});	
+			});
+		
+			$indexedDB.openStore("panier_caisse",function(store){
+				var find = store.query();
+				find = find.$eq($scope.rot);
+				find = find.$index("rot");
+				$scope.panier=[];
+				$scope.total=0;
+				store.eachWhere(find).then(function(e){
+					for (var index in e){
+						//console.log(e[index].code);
+						var pr_cd_pr=e[index].code;
+						$scope.total+=js_produit[pr_cd_pr].pr_prx_vte;
+						trouve=0;
+						$scope.panier.forEach(function(obj,index){
+							if (obj.code==pr_cd_pr){
+								$scope.panier[index].qte++;
+								trouve=1;
+							}
+						});
+						if (!trouve){
+							$scope.panier.push({code:pr_cd_pr,desi:js_produit[pr_cd_pr].pr_desi,prix:js_produit[pr_cd_pr].pr_prx_vte,qte:1});
+						}
+					}
+				});
+			});
+			$scope.fenetre("etat_caisse");
+		};
+		$scope.logout=function(){
+			sessionStorage.clear();
+			window.location.reload();
+			
+		}
+		
+		$scope.moins=function(pr_cd_pr){
+			js_panier.forEach(function(obj,index){
+				if (obj.code==pr_cd_pr){
+					js_panier[index].qte--;
+					$scope.panier[index].qte--;
+				}
+			});
+			$scope.total=somme_panier($scope.remise);
+		}
+		$scope.indefini=function(pr_cd_pr){
+			$scope.prix=document.form_indef.prix.value; 
+			//parent ne marche pas
+			js_panier.forEach(function(obj,index){
+				if (obj.code==pr_cd_pr){
+					js_panier[index].prix=$scope.prix;
+					$scope.panier[index].prix=$scope.prix;
+				}
+			});
+			$scope.total=somme_panier($scope.remise);
+		}
+
+		$scope.raz= function(){
+			$indexedDB.openStore('panier_caisse', function(store){store.clear();});
+			$indexedDB.openStore('ticket_caisse', function(store){store.clear();});
+			$indexedDB.openStore('vol', function(store){store.clear();});
+			
+		}	
+		
+		$scope.terminer_cde= function(action){
+			var date=get_date();
+			$scope.date=date;
+			if (action=="print"){window.print();window.print();window.print();}
+			$indexedDB.openStore('panier_caisse', function(store){
+				for (var panier in js_panier){
+					store.insert({rot:$scope.rot,novol:$scope.novol,date:date.jour,no_cde: $scope.no_cde,code:js_panier[panier].code,prix:js_panier[panier].prix,qte:js_panier[panier].qte});
+				}
+			});
+			$indexedDB.openStore('ticket_caisse', function(store){
+				if ($scope.arendre.montant<0.3){$scope.arendre={montant:0,devise:1,montantdev:0};}
+				JSON.stringify($scope.client);
+				store.insert({rot:$scope.rot,novol:$scope.novol,date:date.jour,no_cde: $scope.no_cde,montant:$scope.total.ht,heure:date.heure,especes:$scope.encaissement.especes,cb:$scope.encaissement.cb,cheque:$scope.encaissement.cheque,avoir:$scope.encaissement.avoir,rendu:$scope.arendre,sup:0,remise_pour:$scope.remise,client:$scope.client});
+				console.log($scope.rot+" "+$scope.no_cde);
+				
+				js_panier=[];
+				$scope.panier=[];
+				$scope.encaissement={especes:{montant:0,devise:0,montantdev:0},cb:{montant:0,devise:0,montantdev:0},cheque:{montant:0,devise:0,montantdev:0},avoir:{montant:0,devise:0,montantdev:0}};
+				$scope.total={ttc:0,tva:0,ht:0};
+				$scope.remise=0;
+				$scope.arendre={montant:0,devise:1,montantdev:0};				
+				$scope.du={montant:0,devise:0,montantdev:0};				
+				$scope.no_cde++;
+			});			
+			$scope.fenetre("boutique");
+		};
+		$scope.raz_var=function(){
+			js_panier=[];
+			$scope.panier=[];
+			$scope.total={ttc:0,tva:0,ht:0};
+			$scope.remise=0;
+			$scope.arendre={montant:0,devise:1,montantdev:0};				
+			$scope.du={montant:0,devise:0,montantdev:0};				
+		}
+		$scope.historique= function(){
+			$scope.liste_ticket=[];
+			$indexedDB.openStore("ticket_caisse",function(store){
+				var find = store.query();
+				find = find.$eq($scope.rot);
+				find = find.$index("rot");
+				store.eachWhere(find).then(function(results){
+				    //console.log(results);
+					for (var index in results){
+						$scope.liste_ticket.push(results[index]);
+						if (results[index].sup==1){$scope.liste_ticket[index].sup="bg-danger";}
+					}
+				});
+			});
+			$scope.fenetre("historique");		
+		};
+		$scope.info_vol= function(){
+			$scope.phase="login";
+		}	
+		
+		$scope.ajout_equipage= function(){
+			$scope.message="";
+			$scope.liste_pnc=[];
+			$indexedDB.openStore("pnc",function(store){ 
+				var find = store.query(); 
+				find = find.$eq($scope.rot);
+				//find = find.$index("rot");
+				store.eachWhere(find).then(function(results){ 
+					var crew=results[0].tri.split(":");
+					crew.forEach(function(obj,index){
+						if (obj.length==3){
+							$scope.liste_pnc.push({"tri":obj});
+						}
+					});	
+				});	
+			});
+			$scope.fenetre("liste_pnc");		
+		};
+		
+		
+		$scope.detail_ticket=function(no_cde){
+			$scope.panierh=[];
+			$scope.no_cde_run=no_cde;
+			$indexedDB.openStore("panier_caisse",function(store){
+				var find = store.query();
+				find = find.$eq(no_cde);
+				find = find.$index("no_cde");
+				store.eachWhere(find).then(function(results){
+					for (var index in results){
+						if (results[index].rot==$scope.rot){
+							$scope.panierh.push({code:results[index].code,desi:js_produit[results[index].code].pr_desi,prix:results[index].prix,qte:results[index].qte});
+						}
+					}
+				});
+			});
+			$indexedDB.openStore("ticket_caisse",function(store){
+				var find = store.query();
+				find = find.$eq($scope.rot);
+				find = find.$index("rot");
+				store.eachWhere(find).then(function(results){
+						for (var index in results){
+							// console.log(results[index]);
+							if (results[index].no_cde==no_cde){
+									$scope.ticket_caisse=results[index];
+							}
+						}	 
+				});
+			});
+			$scope.fenetre("detail_ticket");		
+		};
+		$scope.sup_ticket=function(){
+			$indexedDB.openStore("ticket_caisse",function(store){
+				store.delete($scope.no_cde_run);
+				$scope.ticket_caisse.sup=1;
+				store.insert($scope.ticket_caisse);
+			});
+		};
+		$scope.aff_devise=function(mode_paye){
+			//console.log(mode_paye.montantdev);
+			var precision=$scope.devise[mode_paye.devise].precision;
+			var sigle=$scope.devise[mode_paye.devise].sigle;
+			return(accounting.formatNumber(mode_paye.montantdev,precision," ")+" "+sigle);
+		};
+		$scope.aff_arendre=function(arendre){
+			arendre.montantdev=convert_inf(arendre.montant,$scope.devise[1]);
+			var precision=$scope.devise[1].precision;
+			var sigle=$scope.devise[1].sigle;
+			return(accounting.formatNumber(arendre.montantdev,precision," ")+" "+sigle);
+		};
+		$scope.aff_rendu=function(arendre){
+			var precision=$scope.devise[1].precision;
+			var sigle=$scope.devise[1].sigle;
+			return(accounting.formatNumber(arendre,precision," ")+" "+sigle);
+		};
+		
+		
+		$scope.changedev=function(devise){
+			$scope.du.devise=devise;
+			$scope.du.montantdev=convert($scope.du.montant,$scope.devise[devise]);
+			//$scope.arendre.devise=devise;
+			$scope.arendre.montantdev=convert($scope.arendre.montant,$scope.devise[1]);
+			if ($scope.encaissement.especes.montant==0){$scope.encaissement.especes.devise=devise;}
+			if ($scope.encaissement.cheque.montant==0){$scope.encaissement.cheque.devise=devise;}
+			if ($scope.encaissement.cb.montant==0){$scope.encaissement.cb.devise=devise;}
+			if ($scope.encaissement.avoir.montant==0){$scope.encaissement.avoir.devise=devise;}
+		}
+		$scope.maj_paye=function(payment){
+			if (payment=="especes"){
+				$scope.encaissement.especes.montant=parseFloat($scope.du.montant)+parseFloat($scope.encaissement.especes.montant+0);
+				$scope.encaissement.especes.montantdev=parseFloat($scope.du.montantdev)+parseFloat($scope.encaissement.especes.montantdev+0);
+				$scope.encaissement.especes.devise=$scope.du.devise;
+			}
+			if (payment=="cheque"){
+				$scope.encaissement.cheque.montant=parseFloat($scope.du.montant)+parseFloat($scope.encaissement.cheque.montant+0);
+				$scope.encaissement.cheque.montantdev=parseFloat($scope.du.montantdev)+parseFloat($scope.encaissement.cheque.montantdev+0);
+				$scope.encaissement.cheque.devise=$scope.du.devise;
+			}
+			if (payment=="cb"){
+				$scope.encaissement.cb.montant=parseFloat($scope.du.montant)+parseFloat($scope.encaissement.cb.montant+0);
+				$scope.encaissement.cb.montantdev=parseFloat($scope.du.montantdev)+parseFloat($scope.encaissement.cb.montantdev+0);
+				$scope.encaissement.cb.devise=$scope.du.devise;
+			}
+			if (payment=="avoir"){
+				$scope.encaissement.avoir.montant=parseFloat($scope.du.montant)+parseFloat($scope.encaissement.avoir.montant+0);
+				$scope.encaissement.avoir.montantdev=parseFloat($scope.du.montantdev)+parseFloat($scope.encaissement.avoir.montantdev+0);
+				$scope.encaissement.avoir.devise=$scope.du.devise;
+			}
+			$scope.du.montant=0;
+			$scope.du.montantdev=0;
+		}
+		$scope.maj_du=function(payment){
+		    if (payment=="especes"){
+				$scope.encaissement.especes.montant=$scope.encaissement.especes.montantdev/$scope.devise[$scope.encaissement.especes.devise].cours;
+			}
+			if (payment=="cb"){
+				$scope.encaissement.cb.montant=$scope.encaissement.cb.montantdev/$scope.devise[$scope.encaissement.cb.devise].cours;
+			}
+			if (payment=="cheque"){
+				$scope.encaissement.cheque.montant=$scope.encaissement.cheque.montantdev/$scope.devise[$scope.encaissement.cheque.devise].cours;
+			}
+			if (payment=="avoir"){
+				$scope.encaissement.avoir.montant=$scope.encaissement.avoir.montantdev/$scope.devise[$scope.encaissement.avoir.devise].cours;
+			}
+			$scope.du.montant=$scope.total.ht-$scope.encaissement.especes.montant-$scope.encaissement.cheque.montant-$scope.encaissement.cb.montant-$scope.encaissement.avoir.montant;
+			if (($scope.du.montant>-0.2)&&($scope.du.montant<0.2)) {$scope.du.montant=0;}
+			$scope.du.montantdev=convert($scope.du.montant,$scope.devise[$scope.du.devise])
+			$scope.arendre.montant=0-$scope.du.montant;
+			$scope.arendre.montantdev=convert_inf($scope.arendre.montant,$scope.devise[1]);
+			if ($scope.du.montant<0){$scope.du.montant=0;$scope.du.montantdev=0;}
+		}
+		$scope.home=function(){
+			$scope.fenetre("boutique");
+		};
+		
+	});
+	
+	function convert(montant,devise){
+		var montant_dev=0;
+		montant_dev=montant*devise.cours;
+		if ((devise.sigle=="FCFA")||(devise.sigle=="XOF")){
+			//montant_dev=Math.round(montant/100*devise.cours)*100;
+			montant_dev=Math.round((montant*655.957+250)/500)*500;
+		}
+		return(montant_dev);
+	}
+	function convert_inf(montant,devise){
+		var montant_dev=0;
+		montant_dev=montant*devise.cours;
+		if ((devise.sigle=="FCFA")||(devise.sigle=="XOF")){
+			montant_dev=Math.floor((montant*655.957)/500)*500;
+		}
+		if (montant==0){montant_dev=0;}
+		return(montant_dev);
+	}
+	
+	function somme_panier(){
+		var total=0;
+		var tva=0;
+		var ht=0;
+		var ht_FCFA=0;
+		for (var index in js_panier){
+			total += js_panier[index].qte*js_panier[index].prix;
+		}
+		ht=total;
+		//tva=Math.round(ttc*20)/100;
+		tva=0;
+		ttc=0;
+		//ht=Math.round((ttc-tva)*100)/100;
+		ht_FCFA=convert(ht,FCFA);
+		return({ttc:ttc,tva:tva,ht:ht,FCFA:ht_FCFA});
+	}
+
+	var $j = jQuery.noConflict();
+	$j(document).ready(function($) {
+		var monthNames = [ "janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre" ]; 
+		var dayNames= ["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"]
+		var newDate = new Date();
+		newDate.setDate(newDate.getDate());
+		// Output the day, date, month and year   
+		setInterval( function() {
+			$('#header_date').html(dayNames[newDate.getDay()] + " " + newDate.getDate() + ' ' + monthNames[newDate.getMonth()] + ' ' + newDate.getFullYear());
+		},10000);
+		setInterval( function() {
+			var seconds = new Date().getSeconds();
+			$("#header_sec").html(( seconds < 10 ? "0" : "" ) + seconds);
+			},1000);
+		setInterval( function() {
+			var minutes = new Date().getMinutes();
+			$("#header_min").html(( minutes < 10 ? "0" : "" ) + minutes);
+			},1000);
+		setInterval( function() {
+			var hours = new Date().getHours();
+			$("#header_hours").html(( hours < 10 ? "0" : "" ) + hours);
+			}, 1000);	
+	});
+	function get_date(){
+		var date = new Date();
+		var heure = date.getHours();
+		heure=( heure < 10 ? "0" : "" ) + heure;
+		var minute = date.getMinutes();
+		minute=( minute < 10 ? "0" : "" ) + minute;
+		var seconde = date.getSeconds();
+		seconde=( seconde < 10 ? "0" : "" ) + seconde;
+		jour=date.toJSON().split("T");
+		var hms=heure+':'+minute+':'+seconde;
+		return({jour:jour[0],heure:hms});
+	}
+	function scan_focus(){
+		if (run==1){
+			//document.myForm.scan_data.focus();
+		}
+	}	
+	</script>
+<style>
+@media screen {
+	#facture {
+		display:none;
+		background-color:white;
+		margin-top:10px;
+		border-style:dashed;
+	}
+}
+</style>
+</head>
+<body onload=scan_focus()>
+	<div ng-app="myApp" ng-controller="caisseCtrl" data-ng-init=init()>
+		<div class="container">
+		
+		 <!-- <ul> -->
+    <!-- <li dir-paginate="item in collection | filter:q | itemsPerPage: pageSize">{{ item }}</li> -->
+  <!-- </ul> -->
+
+  <!-- <dir-pagination-controls></dir-pagination-controls> -->
+		
+		
+		
+			<div ng-switch="phase">
+				<div ng-switch-when="login">
+					<div style="padding:20px;border-radius:10px 10px 10px 10px;background:white; width:300px;margin:auto;margin-top:50px">
+						<div class="row">
+							<form novalidate style=text-align:center>
+							   Numéro du vol<br />
+								<input  class="form-control input-lg" ng-model="$parent.novol"  required /><br />
+								Aéroport départ<br />
+								<input  class="form-control input-lg" ng-model="$parent.dep"  required /><br />
+								Aéroport arrivé<br />
+								<input  class="form-control input-lg" ng-model="$parent.arr"  required /><br />
+								<button class="btn btn-primary" ng-click="login()">Login</button>
+								<button class="btn btn-danger" ng-click="debloque()" ng_show="rot>1&&no_cde<200">Debloquer la caisse précedente</button>
+							</form>
+						</div>	
+					</div>	
+				</div> 
+<!-- fin login -->
+
+				<div ng-switch-default>
+<!-- HEADER-->
+					<div class="row hidden-print" >
+						<div class="col-sm-12" id="header">
+							<div>
+								<div id="header_user_logged">
+									{{version}} Rot:{{rot}} Vol:{{novol}} {{dep}}:{{arr}} 
+									<img src=images/logo_aci.png height=40 style=position:relative;top:-14px>
+								</div>
+								<div id="header_date_heure">
+								   <span id="header_date"></span>
+								   <span id="header_hours">08</span>:<span id="header_min">00</span>:<span id="header_sec">00</span>
+								</div>
+							</div>
+						</div> 
+					</div>
+<!-- Fin HEADER -->
+
+<!-- CONTENU -->
+					<div class="row">
+						<nav class="navbar navbar-default">
+							<ul class="nav navbar-nav" style=font-size:0.8em;>
+								<li>
+									<a href="#" style=margin:1px ng-click="q='Parfums Femmes'">Parfums Femmes</a>
+								</li>
+								<li>
+									<a href="#" style=margin:1px ng-click="q='Parfums Hommes'">Parfums Hommes</a>
+								</li>
+								<li>
+								   <a href="#" style=margin:1px ng-click="q='Coffrets Parfums'">Coffrets Parfums</a>
+								</li>
+								<li>
+									<a href="#" style=margin:1px ng-click="q='Cosmetiques'">Cosmetiques</a>
+								</li>
+								<li>
+									<a href="#" style=margin:1px ng-click="q='Montres'">Montres</a>
+								</li>
+								<li>
+									<a href="#" style=margin:1px ng-click="q='Accessoires'">Accessoires</a>
+								</li>
+								<li>
+									<a href="#" style=margin:1px ng-click="q='Bijouterie'">Bijouterie</a>
+								</li>
+								<li>
+							</ul>
+						</nav>	
+<!-- Boutique -->
+						<div class="col-sm-8 hidden-print" id=boutique >
+							<div id="main_client_name">
+							  <span>Ticket No:{{no_cde}}</span>
+							</div>
+							<div ng-if="vide==true" class="alert alert-danger">Fichier produit vide Cliquer sur "Maj Produit"</div>
+							
+							<div style=margin-bottom:10px>
+								<div style=width:80%;display:inline-block>
+									<input ng-model="$parent.q" id="search" class="form-control" placeholder="Filter text">
+								</div>
+								<span class="glyphicon glyphicon-search"></span>
+							</div>
+<!--
+							<span class="glyphicon glyphicon-search"></span>
+								<input ng-model="$parent.q" id="search" class="form-control" placeholder="Filter text"><br />-->
+							<ul class="nav navbar-nav" >
+								<li  dir-paginate="y in produit | filter:q |itemsPerPage: 12" class="main_article main_favorite" style="display:inline-block;"> 
+								<table class="tbl_article" ng-click="add(y.pr_cd_pr)">
+								  <tbody>
+									<tr>
+										<td class="article_name_cell">
+										<p class="article_name">{{y.pr_desi}} {{y.pr_cd_pr}}
+										 <!--<img ng_show='y.pr_image_s.length>5' src=images/{{y.pr_image_s}} alt=\"\" width=50px>-->
+										</p>
+										</td>
+									</tr>
+									<tr>
+									  <td class="article_price">{{y.pr_prx_vte}}&euro;</td>
+									</tr>
+								  </tbody>
+								</table>
+								</li>
+							</ul>
+							<dir-pagination-controls boundary-links="true" template-url="dirPagination.tpl.html"></dir-pagination-controls>
+						</div>	
+<!-- Fin boutique -->
+<!-- Paiement -->
+						<div class="col-sm-8 hidden-print" id=encaisse style=display:none>
+							<strong>Ticket No:{{no_cde}}</strong>
+						 	<br>
+							<section>
+							<form id="payment_form" name="payment_form" ng-submit="nil()">
+							<div class="btn-group" >
+									<h3>Montant d&ucirc; : <span id="payment_du_value">{{aff_devise(du)}}</span></h3>
+									<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+										Devise <span class="caret"></span>
+									</button>
+									<ul class="dropdown-menu">
+										<li><a href="#" ng-click=changedev(0)>Euro</a></li>
+										<li><a href="#" ng-click=changedev(1)>FCFA</a></li>
+										<li><a href="#" ng-click=changedev(2)>Dollar</a></li>
+										<!-- <li><a href="#" ng-click=changedev(3)>Livre</a></li> -->
+										<li><a href="#" ng-click=changedev(4)>Rand</a></li>
+										<li><a href="#" ng-click=changedev(5)>XOF</a></li>
+									</ul>
+							</div>
+							<table border="0">
+							<tbody>
+								<tr>
+									<td class="payment_title">Esp&egrave;ces</td>
+									<td><nobr>{{aff_devise(encaissement.especes)}}</nobr></td>
+									<td class="payment_value" ng_if="encaissement.especes.devise==du.devise"><input  ng-model="encaissement.especes.montantdev" ng-pattern="/^[0-9]{1,7}(\.[0-9]+)?$/" name="anim" class="my-input" aria-describedby="inputDescription" ng-change="maj_du('especes')" /></td>
+									<td class="payment_montant" ng_if="encaissement.especes.devise==du.devise"><button type="button" class="btn btn-default" ng-click=maj_paye("especes")><span class="glyphicon glyphicon-arrow-left"></span> Montant d&ucirc;</button></td>
+								</tr>
+								<tr>
+									<td class="payment_title">Multidevises</td>
+									<td><nobr>{{aff_devise(encaissement.cheque)}}</nobr></td>
+									<td class="payment_value" ng_if="encaissement.cheque.devise==du.devise"><input  ng-model="encaissement.cheque.montantdev" ng-pattern="/^[0-9]{1,7}(\.[0-9]+)?$/" name="anim" class="my-input" aria-describedby="inputDescription" ng-change="maj_du('cheque')" /></td>
+									<td class="payment_montant" ng_if="encaissement.cheque.devise==du.devise"><button type="button" class="btn btn-default" ng-click=maj_paye("cheque")><span class="glyphicon glyphicon-arrow-left"></span> Montant d&ucirc;</button></td>
+								</tr>
+								<tr>
+									<td class="payment_title">CB</td>
+									<td><nobr>{{aff_devise(encaissement.cb)}}</nobr></td>
+									<td class="payment_value"><input ng-if="du.devise==0||du.devise==1" ng-model="encaissement.cb.montantdev" ng-pattern="/^[0-9]{1,7}(\.[0-9]+)?$/" class="my-input"  ng-change="maj_du('cb')" /></td>
+									<td class="payment_montant"><button type="button" class="btn btn-default" ng-if="du.devise==0||du.devise==1" ng-click=maj_paye("cb") ><span class="glyphicon glyphicon-arrow-left"></span> Montant d&ucirc;</button></td>
+								</tr>
+								<tr>
+									<td class="payment_title">Avoir</td>
+									<td><nobr>{{aff_devise(encaissement.avoir)}}</nobr></td>
+									<td class="payment_value" ng_if="encaissement.avoir.devise==du.devise"><input  ng-model="encaissement.avoir.montantdev" ng-pattern="/^[0-9]{1,7}(\.[0-9]+)?$/" name="anim" class="my-input" aria-describedby="inputDescription" ng-change="maj_du('avoir')" /></td>
+									<td class="payment_montant" ng_if="encaissement.avoir.devise==du.devise"><button type="button" class="btn btn-default" ng-click=maj_paye("avoir")><span class="glyphicon glyphicon-arrow-left"></span> Montant d&ucirc;</button></td>
+								</tr>
+								<tr ng-if="arendre.montant>0">
+									<td id="payment_change" class="payment_value" colspan="3">
+									A rendre : <span id="payment_change_value_global" class="highlight"><span id="payment_change_value">{{aff_arendre(arendre)}}</td>
+								</tr>
+								</tbody>
+								</table>
+								<!-- <div class="text-center">Nom <input  ng-model="client.nom" class="my-input">Passeport <input  ng-model="client.passeport" class="my-input"> novol <input ng-model="client.novol" class="my-input"></div>
+								<div class="text-center">Destination  
+								  <select class="form-control" id="sel1" ng-model="client.destination">
+								  <option  ng-repeat="dest in destination_liste" ng-value='{{dest.tri	}}'>{{dest.tri}} {{dest.desi}}</option></select>
+								  </div> -->
+							<!-- No vol <input  ng-model="client.vol" class="my-input"> Destination <input  ng-model="client.destination" class="my-input">-->
+								<!--  Nationalite <input  ng-model="client.nationalite" class="my-input">-->
+								<div ng-if="du.montant==0" class="text-center">
+									<button type="button" class="btn btn-info" ng-click="terminer_cde()"><span class="glyphicon glyphicon-check"></span> Terminer</button>
+									<button type="button" class="btn btn-info" ng-click="terminer_cde('print')"><span class="glyphicon glyphicon-print"></span> Terminer et Imprimer</button>
+									<button type="button" class="btn btn-warning" ng-click="fenetre('boutique')"><span class="glyphicon glyphicon-remove"></span> Annuler</button>
+								</div>
+							</form>
+							</section>
+						</div>
+<!-- Fin Paiement -->
+<!-- Historique -->
+						<div class="col-sm-8 hidden-print" id=historique style=display:none>
+						 	<button type="button" class="btn btn-success pull-right hidden-print" ng-click="fenetre('boutique')"><span class="glyphicon glyphicon-shopping-cart"></span> Retour Boutique</button>
+							Historique de {{novol}}
+							<div id=loader>
+							</div>
+							<table class="table table-hover table-striped">
+								<thead>
+								  <tr>
+									<th>No ticket</th>
+									<th>Date</th>
+									<th>Montant</th>
+									<th >Action</th>
+								  </tr>
+								</thead>
+								<tbody>
+								  <tr dir-paginate="y in liste_ticket |orderBy:'-no_cde':reverse |itemsPerPage: 7">
+									<td ng-class="y.sup"><strong>{{ y.no_cde }}</strong></td>
+									<td ng-class="y.sup">{{y.date}} {{y.heure}}</td>
+									<td class="text-right" ng-class="y.sup">{{y.montant}}</td>
+									<td>
+									<button class="btn" ng-click=detail_ticket(y.no_cde)>
+										<span class="glyphicon glyphicon-pencil"></span>
+									</button>
+									</td>
+								  </tr>
+								</tbody>  
+							</table>
+							<!-- <dir-pagination-controls boundary-links="true" template-url="dirPagination.tpl.html"></dir-pagination-controls> --->
+							<dir-pagination-controls></dir-pagination-controls> 
+							
+						</div>
+<!-- Fin historique -->
+<!-- pnc -->
+						<div class="col-sm-8 hidden-print" id=liste_pnc style=display:none>
+								<div ng-show='message.length>0' class="alert alert-danger">{{$parent.message}}</div>
+								 <div ng-repeat="x in liste_pnc"><strong> {{x.tri}} </strong> 
+									 <button class="btn" ng-click=sup_pnc(x.tri)>
+										<span class="glyphicon glyphicon-trash"></span>
+									</button>
+								</div>
+								<br />Trigramme 
+								<input  class="form-control input-xs" ng-model="$parent.tri"  required style=width:50px/><br />
+								<button class="btn btn-primary" ng-click="add_pnc()">Ajouter</button>
+							 	<button type="button" class="btn btn-success pull-right" ng-click="fenetre('boutique')"><span class="glyphicon glyphicon-shopping-cart"></span> Retour Boutique</button>
+						</div> 
+<!-- fin pnc -->
+<!-- Detail ticket -->
+						<div class="col-sm-4" id=detail_ticket style=display:none>
+							<!-- <button class="btn btn-danger pull-right hidden-print" ng-click=sup_ticket()>
+							<span class="glyphicon glyphicon-trash"></span>
+							</button> -->
+							<table class="table table-hover table-striped">
+								<thead>
+								  <tr>
+									<th>Produit</th>
+									<th>prix</th>
+									<th>Qte</th>
+								  </tr>
+								</thead>
+							<tbody>
+							  <tr ng-repeat="x in panierh">
+								<td style=font-size:0.8em>{{ x.desi }}</td>
+								<td class="prix" ng_if="x.code!=100">{{ x.prix }}</td>
+								<td class="prix" ng_if="x.code==100"><form name=form_indef><input type=number name=prix ng-model="prix" step=0.1 style=width:60px ng-change=indefini(x.code)></form></td>
+								<td>{{ x.qte }}</td>
+								<td>
+							  </tr>
+							</tbody>  
+							</table>
+							<!-- <span ng_if="ticket_caisse.sup==1" class="bg-danger">Ticket Annul&eacute;<br></span>
+							<span ng_if="ticket_caisse.remise_pour>0">Remise: {{ticket_caisse.remise_pour}} %<br></span>-->
+							<strong>Total ht: {{ticket_caisse.montant}} &euro;<br></strong>
+							<span ng_if="ticket_caisse.especes.montant>0">Especes: {{aff_devise(ticket_caisse.especes)}}<br></span>
+							<span ng_if="ticket_caisse.cb.montant>0">Cb: {{aff_devise(ticket_caisse.cb)}}<br></span>
+							<span ng_if="ticket_caisse.cheque.montant>0">Multidevise: {{aff_devise(ticket_caisse.cheque)}}<br></span>
+							<span ng_if="ticket_caisse.avoir.montant>0">Avoir: {{aff_devise(ticket_caisse.avoir)}}<br></span>
+							<span ng_if="ticket_caisse.rendu.montant>0">Rendu: {{aff_devise(ticket_caisse.rendu)}}<br></span>
+							<div style=margin:20px>
+								<button class="btn hidden-print" ng-click=print()>
+									<span class="glyphicon glyphicon-print"></span>
+								</button>
+								<button type="button" class="btn btn-info hidden-print" ng-click="historique()"><span class="glyphicon glyphicon-arrow-left"></span> Retour</button>
+							</div>
+						</div>
+<!-- fin detail_ticket -->
+<!-- Panier -->			
+						<div class="col-sm-4" id=panier>
+						<!--http://www.partage-it.com/faites-bonne-impression-avec-twitter-bootstrap/-->
+							<p id="panier_afficheur_total" class="hidden-print" style=background:black>{{total.ht}} &euro;</p>
+							<div class="visible-print">Le {{date.jour}} {{date.heure}}<br />Duty Free Concept<br />1 passage du grand Cerf<br />75002 PARIS<br />R.C.S Paris 524 057 049</div>
+							<strong>Ticket no:{{no_cde}}</strong> 
+							<table class="table table-hover table-striped">
+								<thead>
+								  <tr>
+									<th>Produit</th>
+									<th>prix</th>
+									<th>Qte</th>
+									<th colspan=3 class="hidden-print">Action</th>
+								  </tr>
+								</thead>
+							<tbody>
+							  <tr ng-repeat="x in panier">
+								<td style=font-size:0.8em>{{ x.desi }}</td>
+								<td class="prix">{{ x.prix }}</td>
+								<td>{{ x.qte }}</td>
+								<td>
+								<button class="btn" ng-if="x.qte>1" ng-click=moins(x.code)>
+									<span class="glyphicon glyphicon-chevron-down"></span>
+								</button>
+								</td>
+								<td class="hidden-print">
+								<button class="btn" ng-click=add(x.code)>
+									<span class="glyphicon glyphicon-chevron-up"></span>
+								</button>
+								</td>
+								<td class="hidden-print">
+								<button class="btn" ng-click=sup(x.code)>
+									<span class="glyphicon glyphicon-trash"></span>
+								</button>
+								</td>
+							  </tr>
+							</tbody>  
+							</table>
+							<table class="table">
+							<tr>
+								  <td colspan=2>Total HT</td>
+								  <td class="text-right prix">{{total.ht}} &euro;</td>
+							</tr><tr>
+								  <td colspan=2>Total FCFA</td>
+								  <td class="text-right prix">{{total.FCFA}} FCFA</td>
+							</tr>
+						   </table>
+						   <div class="visible-print">
+							<!-- <span>Passport: {{client.passeport}}<br></span> -->
+							<span ng_if="encaissement.especes.montant>0">Especes: {{aff_devise(encaissement.especes)}}<br></span>
+							<span ng_if="encaissement.cb.montant>0">Cb: {{aff_devise(encaissement.cb)}}<br></span>
+							<span ng_if="encaissement.cheque.montant>0">Multidevise: {{aff_devise(encaissement.cheque)}}<br></span>
+							<span ng_if="encaissement.avoir.montant>0">Avoir: {{aff_devise(encaissement.avoir)}}<br></span>
+							<span ng_if="arendre.montant>0">Rendu: {{aff_arendre(arendre)}}<br></span>
+							Les produits ne sont ni repris ni échangés.<br>
+							<!--Code wifi:{{codewifi}}<br>
+							Contact : (00237) 699005870<br> -->
+							Merci et à bientôt<br>	
+							</div>
+							<button type="button" class="btn btn-success hidden-print" ng_if="total.ht>0" ng_click="fenetre('encaisse')"><span class="glyphicon glyphicon-ok"></span> Valider le ticket</button>
+						</div>
+<!-- fin Panier -->
+<!-- Facture -->			
+						<div class="col-sm-4" id=facture >
+						<!--http://www.partage-it.com/faites-bonne-impression-avec-twitter-bootstrap/-->
+							<div style=text-align:center>Le {{date.jour}} {{date.heure}}<br />Buy&FLy Douala<br />By Duty Free Concept<br /></div>
+							<span>novol: {{client.novol}}<br></span>
+							<span>Client: {{client.nom}}<br></span>
+							<strong>Ticket no:{{no_cde}}</strong> 
+							<table class="table">
+								<thead>
+								  <tr>
+									<th>Produit</th>
+									<th>Prix</th>	
+									<th>Qte</th>
+								  </tr>
+								</thead>
+							<tbody>
+							  <tr ng-repeat="x in panier">
+								<td style=font-size:0.8em>{{ x.desi }}</td>
+								<td class="prix">{{ x.prix }}</td>
+								<td>{{ x.qte }}</td>
+							  </tr>
+							</tbody>  
+							</table>
+							<table class="table">
+							<tr ng-if="remise>0">
+								<td >R&eacute;duction</a></td>
+									 <td class="text-right">{{remise}} %</td>
+							</tr><tr>
+								  <td colspan=2>Total HT</td>
+								  <td class="text-right prix">{{total.ht}} &euro;</td>
+							</tr><tr>
+								  <td colspan=2>Total FCFA</td>
+								  <td class="text-right prix">{{total.FCFA}} FCFA</td>
+							</tr>
+						   </table>
+						   <div>
+							<!-- <span>Passport: {{client.passeport}}<br></span> -->
+							<span ng_if="encaissement.especes.montant>0">Especes: {{aff_devise(encaissement.especes)}}<br></span>
+							<span ng_if="encaissement.cb.montant>0">Cb: {{aff_devise(encaissement.cb)}}<br></span>
+							<span ng_if="encaissement.cheque.montant>0">Multidevise: {{aff_devise(encaissement.cheque)}}<br></span>
+							<span ng_if="encaissement.avoir.montant>0">Avoir: {{aff_devise(encaissement.avoir)}}<br></span>
+							<span ng_if="arendre.montant>0">Rendu: {{aff_arendre(arendre)}}<br></span>
+							<span style=font-size:10px>Les produits ne sont ni repris ni échangés.</span><br>
+							<!-- Code wifi:{{codewifi}}<br>
+							Contact : (00237) 699005870<br> -->
+							Merci et à bientôt<br>
+							<span style=font-size:8px>R.C.S Paris 524 057 049</span>							
+							</div>
+							<!--
+							<div class="visible-print">	
+								<div style=page-break-after:right>.</div>
+								<div style=text-align:center>Le {{date.jour}} {{date.heure}}<br />Duty Free Concept<br />1 passage du grand Cerf<br />75002 PARIS<br />R.C.S Paris 524 057 049</div>
+								<span>novol: {{client.novol}}<br></span>
+								<strong>Ticket no:{{no_cde}}</strong> 
+								<table class="table table-hover table-striped">
+									<thead>
+									  <tr>
+										<th>Produit</th>
+										<th>prix</th>
+										<th>Qte</th>
+									  </tr>
+									</thead>
+								<tbody>
+								  <tr ng-repeat="x in panier">
+									<td style=font-size:0.8em>{{ x.desi }}</td>
+									<td class="prix">{{ x.prix }}</td>
+									<td>{{ x.qte }}</td>
+								  </tr>
+								</tbody>  
+								</table>
+								<table class="table">
+								<tr ng-if="remise>0">
+									<td >R&eacute;duction</a></td>
+										 <td class="text-right">{{remise}} %</td>
+								</tr><tr>
+									  <td colspan=2>Total HT</td>
+									  <td class="text-right prix">{{total.ht}} &euro;</td>
+								</tr><tr>
+									  <td colspan=2>Total FCFA</td>
+									  <td class="text-right prix">{{total.FCFA}} FCFA</td>
+								</tr>
+							   </table>
+							   <div>
+								<span>Passport: {{client.passeport}}<br></span>
+								<span ng_if="encaissement.especes.montant>0">Especes: {{aff_devise(encaissement.especes)}}<br></span>
+								<span ng_if="encaissement.cb.montant>0">Cb: {{aff_devise(encaissement.cb)}}<br></span>
+								<span ng_if="encaissement.cheque.montant>0">Cheque: {{aff_devise(encaissement.cheque)}}<br></span>
+								<span ng_if="encaissement.avoir.montant>0">Avoir: {{aff_devise(encaissement.avoir)}}<br></span>
+								<span ng_if="arendre.montant>0">Rendu: {{aff_devise(arendre)}}<br></span>
+								<span style=font-size:10px>Les produits ne sont ni repris ni échangés.</span><br>
+								Merci et à bientôt<br>	
+								</div>
+							</div>
+							-->
+						</div>
+<!-- fin Facture -->
+
+<!-- Etat Caisse -->
+						<div class="col-sm-4" id=etat_caisse style=display:none>
+						    <section ng-if='message.length>0'>
+								<div class="alert alert-danger">{{$parent.message}}</div>
+								<button type="button" class="btn btn-default" ng-click="ajout_equipage()"><span class="glyphicon glyphicon-user"></span> Equipage</button>
+							</section>
+							<section ng-if='message.length==0'>
+								<h4>Le {{date.jour}} {{date.heure}}<br />Vol {{novol}} rot:{{rot}} {{dep}} {{arr}}</h4>
+								Equipage:<span ng-repeat="pnc in liste_pnc">{{pnc.tri}} </span>
+								<hr></hr>
+								<div ng_if="montant.especes!=0">
+									<strong>Especes</strong>	
+									<table class="table">
+									<tr ng-repeat="case in solde" ng_if="(case.montantdev!=0 || especes[case.devise].montantdev!=0)&&(case.devise!=1)" >
+									<td align=right>{{aff_devise(case)}}</td><td align=right>Encaissé:{{aff_devise(especes[case.devise])}}</td>
+									</tr>
+									<tr ng-repeat="case in solde" ng_if="(case.montantdev!=0 || especes[case.devise].montantdev!=0)&&(case.devise==1)">
+									<td align=right>{{aff_devise(case)}}</td><td align=right>Encaissé:{{aff_devise(especes[case.devise])}}</td><td align=right>Rendu:{{aff_rendu(rendu)}}</td>
+									</tr>
+									</table>
+								</div>
+								<div ng_if="montant.cheque!=0">
+									<strong>Multidevises</strong>	
+									<table class="table">
+									<tr ng-repeat="case in cheque" ng_if="case.montantdev!=0">
+									<td align=right width=80px>{{aff_devise(case)}}</td><td>&nbsp;</td><td>&nbsp;</td>
+									</tr>
+									</table>
+								</div>
+								<div ng_if="montant.cb!=0">
+									<strong>Cb</strong>	
+									<table class="table">
+									<tr ng-repeat="case in cb" ng_if="case.montantdev!=0">
+									<td align=right  width=80px>{{aff_devise(case)}}</td></td><td>&nbsp;</td><td>&nbsp;</td>
+									</tr>
+									</table>
+								</div>
+								<div ng_if="montant.avoir!=0">
+									<strong>Avoir</strong>	
+									<table class="table">
+									<tr ng-repeat="case in avoir" ng_if="case.montantdev!=0">
+									<td align=right  width=80px>{{aff_devise(case)}}</td></td><td>&nbsp;</td><td>&nbsp;</td>
+									</tr>
+									</table>
+								</div>
+								
+								<table class="table table-hover table-striped">
+									<thead>
+									  <tr>
+										<th>Produit</th>
+										<th>prix</th>
+										<th>Qte</th>
+										<th>Valeur</th>
+									  </tr>
+									</thead>
+								<tbody>
+								  <tr ng-repeat="x in panier">
+									<td style=font-size:0.8em>{{ x.desi }}</td>
+									<td class="prix">{{ x.prix }}</td>
+									<td>{{ x.qte }}</td>
+									<td>{{ x.qte*x.prix }}</td>
+								  </tr>
+								  <tr>
+								  <td colspan=3><strong>Total</strong></td><td><strong>{{total}}</strong></td></tr>
+								</tbody>  
+								</table>
+								<button class="btn hidden-print" ng-click=print()>
+									<span class="glyphicon glyphicon-print"></span>
+								</button>
+							</section>
+							<button type="button" class="btn btn-danger hidden-print" ng-click="fin_de_service()"><span class="glyphicon glyphicon-lock"></span> Fin de Service</button>
+						 	<button type="button" class="btn btn-success pull-right hidden-print" ng-click="fenetre('boutique')"><span class="glyphicon glyphicon-shopping-cart"></span> Retour Boutique</button>
+						</div>
+<!-- fin etat_caisse -->
+					</div> 
+<!-- FIN CONTENU -->		
+<!-- PIED -->
+					<div class="row hidden-print" style="margin-top:30px">
+						<div class="col-sm-12">
+							<nav role="navigation" class="navbar navbar-default">
+								<div class="navbar-header">
+									<button type="button" data-target="#navbarCollapse" data-toggle="collapse" class="navbar-toggle">
+										<span class="sr-only">Toggle navigation</span>
+										<span class="icon-bar"></span>
+										<span class="icon-bar"></span>
+										<span class="icon-bar"></span>
+									</button>
+								</div>
+								<div id="navbarCollapse" class="collapse navbar-collapse">
+									<ul class="nav navbar-nav">
+										<li><button type="button" class="btn btn-info" ng-click=home()><span class="glyphicon glyphicon-home"></span></button></li>
+										<li><button type="button" class="btn btn-default" ng-click="historique()"><span class="glyphicon glyphicon-th-list"></span> Historique</button></li>
+										<li><button type="button" class="btn btn-default" ng-click="majprod()"><span class="glyphicon glyphicon-open"></span> Maj produit</button></li>
+										<li><button type="button" class="btn btn-default" ng-click="majdevise()"><span class="glyphicon glyphicon-open"></span> Maj devise</button></li>
+										<li ><button type="button" class="btn btn-default" ng-click="raz_var()"><span class="glyphicon glyphicon-refresh"></span> Raz panier</button></li>
+										<li><button type="button" class="btn btn-default" ng-click="etat_caisse()"><span class="glyphicon glyphicon-usd"></span> Etat de caisse</button></li>
+										<li><button type="button" class="btn btn-default" ng-click="ajout_equipage()"><span class="glyphicon glyphicon-user"></span> Equipage</button></li>
+										<li><button type="button" class="btn btn-default" ng-click="info_vol()"><span class="glyphicon glyphicon-plane"></span> Info Vol</button></li>
+										<!--<li><button type="button" class="btn btn-default" ng-click="fin_de_service()"><span class="glyphicon glyphicon-lock"></span> Fin de Service</button></li> -->
+										<li ng_show="novol=='sylvain'"><button type="button" class="btn btn-default" style=background-color:red ng-click="raz()"><span class="glyphicon glyphicon-trash"></span> Vider la base</button></li>
+									</ul>
+									<ul class="nav navbar-nav navbar-right">
+										<li><button type="button" class="btn btn-warning" ng-click="logout()"><span class="glyphicon glyphicon-exit"></span> Deconnexion</button></li>
+									</ul>
+								</div>
+							</nav>
+						</div>
+					</div>
+<!-- FIN PIED -->		
+				</div> <!-- fin switch default -->
+			</div> <!-- fin switch -->
+		</div> <!-- fin container -->
+	</div> <!-- fin controller -->
+</body>
+</html>

@@ -1,0 +1,2093 @@
+<!DOCTYPE html> 
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Touchme</title>
+
+<link rel="stylesheet" href="sk20.css" type="text/css">
+<link rel="stylesheet" href="sk20_chrome.css" type="text/css">
+<link rel="stylesheet" href="calculator.css" type="text/css">
+
+<link href="/style/Keyboard.css" rel="stylesheet" type="text/css"/>
+<link href="/style/Select.css" rel="stylesheet" type="text/css"/>
+
+<script src="/Utils.js" type="text/javascript" ></script>
+<script src="/CBA/scripts/CBARemoteClient.js" type="text/javascript" charset="UTF-8"></script>
+<script src="/YT/UI/Keyboard.js" type="text/javascript" charset="UTF-8"></script>
+<script src="sk20.js" type="text/javascript" ></script>
+<script src="calculator.js" type="text/javascript" ></script>
+
+<script>
+var POSITION=0;
+var SOLDE=0;
+var COURS=0;
+var SOLDE_DEV=0;
+var SOLDE_INIT=0;
+var TOTAL_PANIER=0;
+var TOTAL_CA=new Array();
+var ID=0;
+var INDEX_TAB=0;
+var PHASE=-100; 
+var PH_ESPECE=40;
+var GLOB1=0;
+var GLOB2=0;
+var EN_COURS=0;
+var CAL=0;
+
+var DEVISE_BOUTIQUE=0;
+var PAYS_REF=0;
+// 0 euro 1 xof
+var DEVISE_PA=DEVISE_BOUTIQUE;
+var DEVISE_PA_INIT=DEVISE_BOUTIQUE;
+
+var DESI_DEV= new Array();
+var COURS=new Array();
+COURS[0]=[1,655,655,1.13,109];
+COURS[1]=[655,1,1,583,6];
+COURS[4]=[109,0.17,0.17,96,1];
+var SENS=new Array();
+SENS[0]=[0];
+SENS[1]=[PAYS_REF];
+
+var TICKET=0;
+var ROT=0;
+var START=new Date().getTime();
+var NL="\n";
+
+
+var DESI_PRINT="";
+
+var db = openDatabase('touchme', "1.0", '', 2 * 1024 * 1024);
+
+
+if (typeof(localStorage.date)=="undefined")
+	create_table();
+else
+	startApplication();
+//init_rot();
+//init_devise();
+//101 printer
+//100 scan
+//99 code cours
+//7 ticket
+//-13 fin service
+//6 pnc
+//60 saisie pnc
+//70 infovol
+//41 solde
+//42 monnaie
+//3 paiement
+//2 panier
+//1 produit
+//0 boutique
+//-1 gestion
+//-2 admin
+
+function startApplication() {
+	if (sk20==0) { 
+		create_table(); 
+		get_produit();
+		NL="<br />";
+	}
+	verif_devise();
+};
+
+document.addEventListener('keydown',manage_keyboard_main,false);
+
+function manage_keyboard_main(e) {
+//	return;
+//	alert(e.keyCode);
+	var bool=1;
+	if ( e.keyCode==9) {
+	      //->|;
+		event.stopPropagation();
+	       event.preventDefault();
+		popup_cal_in();
+		bool=0;
+		CAL=1;
+	}
+	
+	if (( e.keyCode>=48)&&(e.keyCode<=57)) bool=0;
+	if ((e.keyCode==56)&&(PHASE<3)) bool=1;
+
+	if ((e.keyCode==8)&&(PHASE>=10)) bool=0;
+	if ((PHASE==100)&&(e.keyCode!=41)) bool=0;
+	if ((! sk20)&&(e.keyCode>57)) return;
+	if ((e.keyCode==56)&&(sk20)&&(PHASE==-2)&&(POSITION==1)){
+		create_table();
+	}
+	if (CAL==1){bool=0;}
+	if (bool) {
+	event.stopPropagation();
+	event.preventDefault();
+	var ecart= new Date().getTime()-START;
+	if (! sk20) ecart=1000;
+	var retour=0;
+	var enter=0;
+	var sup=0;
+	var haut=0;
+	var bas=0;
+	if ( e.keyCode==38) bas=1;
+	if ( e.keyCode==40) haut=1;
+	if (( e.keyCode==37)||( e.keyCode==8)) retour=1;
+	if  ((e.keyCode==13)||( e.keyCode==41)) enter=1;
+	if (( e.keyCode==46)||(e.keyCode==27)) sup=1;
+	if ( bas && PHASE<10) {line_updown(-1);}
+	if ( haut && PHASE<10) {line_updown(1);}
+	if (ecart >500){
+	START=new Date().getTime();
+	if (retour) {
+		switch (PHASE){
+			case -2:liste_gestion(0);break;
+			case -1:liste_admin(0);break;
+			case 0: liste_gestion(0);break;
+			case 5:liste_paye(0);break; 
+			case 6:liste_gestion(0);break;
+			case 7:liste_gestion(0);break;
+			case 3:
+				if (EN_COURS) {
+					dialog("Impossible Paiement en cours");
+			 		liste_paye(0);
+				}
+				else liste_panier(0);
+				break;
+			case 60:popup_pnc_out(0);break;
+			case 2:liste_cat(0);break;
+			case 1:liste_cat(0);break;
+		}
+	}
+	if (sup) {
+		switch (PHASE) {
+			case 40:popup_int_out(1);break;
+			case 50:popup_int_out(1);break;
+			case 60:popup_pnc_out(1);break;
+			case 20:popup_panier_out(0);break;
+			case 2:
+				if (POSITION!=0){
+					db.transaction(function (tx) {
+						tx.executeSql('SELECT panier_id FROM PANIER ', [], function(tx,results){
+							sup_panier(results.rows.item(POSITION+INDEX_TAB-1).panier_id);
+					}, errorHandler)});
+				}
+			break;
+			case 6:
+				if (POSITION!=0){
+					db.transaction(function (tx) {
+					tx.executeSql('SELECT pnc_id FROM PNC where rot=?', [ROT], function(tx,results){
+						sup_pnc(results.rows.item(POSITION+INDEX_TAB-1).pnc_id);
+					}, errorHandler)});
+				}
+			break;
+		}
+	}
+	
+	if  (enter ){
+		//alert(PHASE);
+		switch(PHASE){
+			case -2:
+				switch(INDEX_TAB+POSITION){
+					case 0: liste_gestion(0);break;
+					case 1: get_produit();break;
+			 		case 2: send_vente();break;
+			  		case 3: VISA.remise();break;
+					case 4: YTsystem.launchService('Launcher', 'execute(QString)', 'net_settings');break;
+					case 5: YTsystem.launchService('Launcher', 'execute(QString)', 'btsettings');break;
+					case 6: YTsystem.launchService('Launcher', 'execute(QString)', 'updater');break;
+					case 7: YTsystem.launchService('Launcher', 'execute(QString)', 'systemtime');break;
+			  		case 8: VISA.teleparametrage();break;
+			  		
+			  		//case 4: popup_printer_in();break;
+		 		}
+				break;
+			case -1:
+				switch(INDEX_TAB+POSITION){
+					case 0: liste_cat(0);break;
+					case 1: bascule_dev();break;
+			 		case 2: liste_pnc(0);break;
+					case 3: info_vol(0);break;
+					case 4: if (TOTAL_CA[DESI_DEV[DEVISE_BOUTIQUE]]>0) liste_ticket(0);break;
+			 		case 5: if (TOTAL_CA[DESI_DEV[DEVISE_BOUTIQUE]]>0) fin_service(0);break;
+					case 6: if ((TOTAL_CA[DESI_DEV[DEVISE_BOUTIQUE]]+0==0)&&(ROT>1)){PHASE=-14;popup_on_in("Deverouillage");}break;
+					case 7: YTsystem.close();break;
+		 		}
+				break;
+		
+			case 0: liste_prod(0,INDEX_TAB+POSITION);break;
+			case 1:
+				db.transaction(function (tx) {
+					tx.executeSql('SELECT produit_id,prix0,prix1 FROM PRODUIT where cat=? order by desi', [CATEGORIE.toString()], function(tx,results){
+						ajoute_panier(results.rows.item(POSITION+INDEX_TAB).produit_id);
+					}, errorHandler)});
+				break;
+			case 2:
+				if (POSITION==0) {liste_paye(0);}
+				else {
+				db.transaction(function (tx) {
+					tx.executeSql('SELECT prod FROM PANIER ', [], function(tx,results){
+						popup_panier_in(results.rows.item(POSITION+INDEX_TAB-1).prod);
+					}, errorHandler)});
+				}
+			break;
+			case 7:
+				if (POSITION==0) {ticket_again();}else{ticket_sup();}
+			break;	
+			case 20:popup_panier_out(1);break;
+			case 3:paiement(INDEX_TAB+POSITION);break;
+			case 4:liste_paye(0);break;
+			case 30:PHASE=3;break;
+  			case 40:popup_int_out(0);break;
+			case 41:popup_int_out(0);break;
+	  		case 42:popup_int_out(0);break;
+	  		case 70:popup_vol_out();break;
+	  		case 71:popup_int_out(0);break;
+	  		case 72:popup_int_out(0);break;
+	  		case 99:popup_int_out(0);break;
+	  		case 50:popup_int_out(0);break;
+	  		case 60:popup_pnc_out(0);break;
+	  		
+			case 6:popup_pnc_in();break;
+		  	case 100:if (EN_COURS)  dialog("Impossible Paiement en cours "); else scan();  break;
+		  	case -100:beep(0);accueil_off();
+  		}
+	}
+	// 56 F sur sk20  35 fin sur clavier
+	if (( e.keyCode==56)&&(PHASE>=0) && (PHASE<=3)) {
+		//scan;
+		scan_tri();
+	}	
+	
+	}
+	}
+}
+
+// ############        INFORMATION   ############
+
+function menu_haut(chaine){
+	document.querySelector('#menu_haut').innerHTML =  chaine;
+} 
+function logo_hautg(chaine){
+	document.querySelector('#logo_hautg').innerHTML =  "<img src=images/"+chaine+" />";
+}
+
+function maj_total(tx, results){
+	TOTAL_PANIER=results.rows.item(0).total+0;
+	//document.querySelector('#total').style.display = "block";
+	document.querySelector('#total').innerHTML = TOTAL_PANIER+"<span class=mini>"+DESI_DEV[DEVISE_BOUTIQUE]+"</span>";
+	if (TOTAL_PANIER>0) {document.querySelector('#panier').style.display = "block";}else{document.querySelector('#panier').style.display = "none";}
+	SOLDE=TOTAL_PANIER;
+	SOLDE_DEV=SOLDE;
+} 
+function maj_ca(tx, results){
+	if (typeof(results.rows.item(0).total)=== null){TOTAL_CA[DESI_DEV[DEVISE_BOUTIQUE]]=0;}else{
+	TOTAL_CA[DESI_DEV[DEVISE_BOUTIQUE]]=results.rows.item(0).total+0;}
+	if (TOTAL_CA[DESI_DEV[DEVISE_BOUTIQUE]] >0) {document.querySelector('#info_hautd').innerHTML = TOTAL_CA[DESI_DEV[DEVISE_BOUTIQUE]]+"<span class=mini>"+DESI_DEV[DEVISE_BOUTIQUE]+"</span>";}
+	else{document.querySelector('#info_hautd').innerHTML = "V1705.1";}
+} 
+function maj_rot(tx, results){
+	ROT=results.rows.item(0).max+0;
+	ROT++;
+	tx.executeSql('SELECT max(vente_id) as max  fROM VENTE where rot=?', [ROT], maj_ticket, errorHandler);
+	tx.executeSql('SELECT *  FROM VOL where rot=?', [ROT], 
+		      function (tx,results){
+			 if (results.rows.length==1){
+				 var row= results.rows.item(0);
+				document.querySelector("#novol").value=row['novol'];
+				document.querySelector("#depart").value=row['depart'];;
+				document.querySelector("#arrive").value=row['arrive'];;
+			 }
+		}, errorHandler);
+	raz_panier();
+} 
+function maj_ticket(tx, results){
+	TICKET=results.rows.item(0).max+0;
+	TICKET++;
+	if (TICKET>1){ document.querySelector('#accueil').style.display = "none";}
+	//alert(ROT);
+	//alert(TICKET);
+}
+
+// ############        LISTE DES CATEGORIES    ############
+function liste_cat(lift){
+	if (TOTAL_PANIER==0) {
+		document.querySelector('#gestion').style.display="block";
+		document.querySelector('#batterie').style.display="none";
+	}
+	else 
+	{
+		document.querySelector('#gestion').style.display="none";
+		document.querySelector('#batterie').style.display="block";
+		if (sk20) document.querySelector('#pour').innerHTML=YTsystem.batteryCharge+"%";
+	}
+	document.querySelector('#menu_haut').style.backgroundColor="Blue";
+	formation(3);
+	if (! lift){INDEX_TAB=0;POSITION=0;}
+	if (INDEX_TAB<0){INDEX_TAB=0;}
+	clear();
+	menu_haut("Boutique");
+	logo_hautg("boutique.png");
+	PHASE=0;
+	db.transaction(function (tx) { tx.executeSql('SELECT * FROM CAT', [], liste_cat_data, errorHandler)});
+}
+function liste_cat_data(tx, results) {
+	var len = results.rows.length, i;
+	var ligne;
+	if (INDEX_TAB >=len){INDEX_TAB=len-6;}
+	if (INDEX_TAB <0){INDEX_TAB=0;}
+	if ((INDEX_TAB +6 >len)&&(INDEX_TAB>0)){INDEX_TAB--;}
+	len = len-INDEX_TAB;
+	if (len >6){len=6;}
+	for (i = 0; i < len; i++){
+		ligne="#l"+i.toString();
+		var row= results.rows.item(i+INDEX_TAB);
+		document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);liste_prod(0,"+row['cat_id']+")>"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";
+	}
+	allume(POSITION);
+}
+
+// ############        LISTE GESTION   ############
+function liste_gestion(lift){
+	formation(15);
+	
+	if (TOTAL_PANIER!=0) {
+		if (sk20)  YT.UI.confirmDialog.show("Impossible vente en cours",null,"OK"); else alert("Impossible vente en cours");
+	}
+	else
+	{
+		document.querySelector('#gestion').style.display="none";
+		document.querySelector('#batterie').style.display="block";
+		if (sk20) document.querySelector('#pour').innerHTML=YTsystem.batteryCharge+"%";
+
+		if (! lift){INDEX_TAB=0;POSITION=0;}
+		if (INDEX_TAB<0){INDEX_TAB=0;}
+		clear();
+		document.querySelector('#menu_haut').style.backgroundColor="Blue";
+		menu_haut("Gestion");
+		logo_hautg("gestion.png");
+		PHASE=-1;
+		db.transaction(function (tx) { tx.executeSql('SELECT * FROM GESTION', [], liste_gestion_data, errorHandler)});
+	}
+}
+function liste_gestion_data(tx, results) {
+	var len = results.rows.length, i;
+	var ligne;
+	if (INDEX_TAB >=len){INDEX_TAB=len-6;}
+	if (INDEX_TAB <0){INDEX_TAB=0;}
+	if ((INDEX_TAB +6 >len)&&(INDEX_TAB>0)){INDEX_TAB--;}
+	len = len-INDEX_TAB;
+	if (len >6){len=6;}
+	for (i = 0; i < len; i++){
+		ligne="#l"+i.toString();
+		var row= results.rows.item(i+INDEX_TAB);
+		switch(row['gestion_id']){
+			case 0: document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);liste_cat(0) >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			case 1: document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);bascule_dev() >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			case 2: document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);liste_pnc(0) >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			case 3: document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);info_vol(0) >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			case 4: 
+				if (TOTAL_CA[DESI_DEV[DEVISE_BOUTIQUE]]>0){document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);liste_ticket(0) >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";}
+				else
+				{document.querySelector(ligne).innerHTML =  "<div class=down>"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";}
+				break;
+			case 5:
+				if (TOTAL_CA[DESI_DEV[DEVISE_BOUTIQUE]]>0){document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);fin_service(0) >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";}
+				else
+				{document.querySelector(ligne).innerHTML =  "<div class=down>"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";}
+				break;
+			case 6: 
+				 if ((TOTAL_CA[DESI_DEV[DEVISE_BOUTIQUE]]+0==0)&&(ROT>1)){document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);PHASE=-14;popup_on_in("+'"'+"Deverouillage"+'"'+") >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";}
+				else
+				{document.querySelector(ligne).innerHTML =  "<div class=down>"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";}
+				break;
+			
+		}
+	}
+	//ytsystem.close();
+	allume(POSITION);
+}
+
+// ############        LISTE ADMIN    ############
+function liste_admin(lift){
+	//if (! sk20) {alert("Menu Admin non autorisé, réservé à l'administration");return;}
+	if (! lift){INDEX_TAB=0;POSITION=0;}
+	if (INDEX_TAB<0){INDEX_TAB=0;}
+	clear();
+	 document.querySelector('#menu_haut').style.backgroundColor="Red";
+	menu_haut("Admin");
+	logo_hautg("admin.png");
+	if (PHASE==-1){
+		dialog("Attention menu réservé à l'administration");
+		PHASE=-2;
+	}
+	db.transaction(function (tx) { tx.executeSql('SELECT * FROM ADMIN', [], liste_admin_data, errorHandler)});
+}
+
+function liste_admin_data(tx, results) {
+	var len = results.rows.length, i;
+	var ligne;
+	if (INDEX_TAB >=len){INDEX_TAB=len-6;}
+	if (INDEX_TAB <0){INDEX_TAB=0;}
+	if ((INDEX_TAB +6 >len)&&(INDEX_TAB>0)){INDEX_TAB--;}
+	len = len-INDEX_TAB;
+	if (len >6){len=6;}
+	for (i = 0; i < len; i++){
+		ligne="#l"+i.toString();
+		var row= results.rows.item(i+INDEX_TAB);
+		switch(row['admin_id']){
+			case 0: document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);liste_gestion(0) >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			case 1: document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);get_produit() >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			case 2: document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);send_vente() >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			case 3: document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);VISA.remise(); >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			case 4: document.querySelector(ligne).innerHTML =  "<div onclick= \"YTsystem.launchService('Launcher', 'execute(QString)', 'net_settings');\">"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break; 
+			case 5: document.querySelector(ligne).innerHTML =  "<div onclick= \"YTsystem.launchService('Launcher', 'execute(QString)', 'btsettings');\">"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			case 6: document.querySelector(ligne).innerHTML =  "<div onclick= \"YTsystem.launchService('Launcher', 'execute(QString)', 'updater');\">"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			case 7: document.querySelector(ligne).innerHTML =  "<div onclick= \"YTsystem.launchService('Launcher', 'execute(QString)', 'systemtime');\">"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			case 8: document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);VISA.teleparametrage(); >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			case 9: document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);YTsystem.close() >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+
+			//case 4: document.querySelector(ligne).innerHTML =  "<div onclick=beep(0);;popup_printer_in() >"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";break;
+			//btsettings
+			//updater
+		}
+	}
+	//ytsystem.close();
+	allume(POSITION);
+}
+
+// ############        LISTE DES PRODUITS    ############
+function liste_prod(lift,index){
+	formation(11);
+	document.querySelector('#gestion').style.display="none";
+	document.querySelector('#batterie').style.display="block";
+	if (sk20) document.querySelector('#pour').innerHTML=YTsystem.batteryCharge+"%";
+	
+
+	GLOB1=POSITION;
+	GLOB2=INDEX_TAB;
+	if (! lift){INDEX_TAB=0;POSITION=0;}
+	if (INDEX_TAB<0){INDEX_TAB=0;}
+	CATEGORIE=index;
+	clear();
+	PHASE=1;
+	db.transaction(function (tx) {
+		tx.executeSql('SELECT * FROM CAT where cat_id=?', [index], function (tx, results) {menu_haut(results.rows.item(0).desi);logo_hautg(results.rows.item(0).image);}, errorHandler);
+		tx.executeSql('SELECT * FROM PRODUIT where cat=? order by desi', [index.toString()], liste_prod_data, errorHandler)});
+}
+function liste_prod_data(tx, results) {
+	var len = results.rows.length, i;
+	var ligne;
+	var prix=0;
+	if (INDEX_TAB >=len){INDEX_TAB=len-6;}
+	if (INDEX_TAB <0){INDEX_TAB=0;}
+	if ((INDEX_TAB +6 >len)&&(INDEX_TAB>0)){INDEX_TAB--;}
+	len = len-INDEX_TAB;
+	if (len >6){len=6;}
+	for (i = 0; i < len; i++){
+		ligne="#l"+i.toString();
+		if (DEVISE_BOUTIQUE==0) prix=results.rows.item(i+INDEX_TAB).prix0; else prix=results.rows.item(i+INDEX_TAB).prix1; 
+		document.querySelector(ligne).innerHTML =  "<div class=lignep onclick=beep(0);ajoute_panier("+results.rows.item(i+INDEX_TAB).produit_id+");liste_cat(1);>"+results.rows.item(i+INDEX_TAB).desi+"<span class=prix>"+prix+"<span></div>";
+	}
+	if (len >0) {allume(POSITION);}else{beep(1);POSITION=GLOB1;INDEX_TAB=GLOB2;liste_cat(1);}
+}
+
+// ############        LISTE DU PANIER    ############
+function liste_panier(lift){
+	formation(12);
+	GLOB1=POSITION;
+	GLOB2=INDEX_TAB;
+	if (! lift){INDEX_TAB=0;POSITION=0;}
+	if (INDEX_TAB<0){INDEX_TAB=0;}
+	clear();
+	PHASE=2;
+	menu_haut("Panier");
+	logo_hautg("panier.png");
+	db.transaction(function (tx) {
+		tx.executeSql('SELECT sum(montant) as total  fROM PANIER,PRODUIT where panier.prod=produit_id', [], maj_total, errorHandler);
+	});
+	document.querySelector("#l0").innerHTML =  "<div onclick=beep(0);liste_paye(0)>Paiement<img class=sup src=images/payment.png /></div>";
+	db.transaction(function (tx) {tx.executeSql('SELECT produit_id,produit.desi,panier.montant,panier_id FROM PANIER,PRODUIT where panier.prod=produit_id', [],liste_panier_data, errorHandler)}); 
+}
+function liste_panier_data(tx, results) {
+	var len = results.rows.length, i;
+	var ligne;
+	if (INDEX_TAB >=len){INDEX_TAB=len-5;}
+	if (INDEX_TAB <0){INDEX_TAB=0;}
+	if ((INDEX_TAB +5 >len)&&(INDEX_TAB>0)){INDEX_TAB--;}
+	len = len-INDEX_TAB;
+	if (len >5){len=5;}
+	for (i = 0; i < len; i++){
+		ligne="#l"+(i+1).toString();
+		document.querySelector(ligne).innerHTML =  "<div class=lignep onclick=beep(0);popup_panier_in("+results.rows.item(i+INDEX_TAB).produit_id+")>"+results.rows.item(i+INDEX_TAB).desi+"</div><img class=sup src=images/b_drop.png onclick=sup_panier("+results.rows.item(i+INDEX_TAB).panier_id+") />";
+
+	}
+	if (len >0) {allume(POSITION);}else{
+				if (GLOB1==1){
+					liste_cat(0);
+					// suppression du dernier element de paner
+				}
+				else
+				{
+					beep(1);
+					POSITION=GLOB1;
+					INDEX_TAB=GLOB2;
+					liste_cat(1);
+				}
+	}
+}
+
+// ############        LISTE DES MOYENS DE PAIEMENT    ############
+function liste_paye(lift){
+	formation(13);
+	DEVISE_PA=DEVISE_BOUTIQUE;
+	document.querySelector('#total').innerHTML =  SOLDE+"<span class=mini>"+DESI_DEV[DEVISE_BOUTIQUE]+"</span>" ;
+	if (EN_COURS){ document.querySelector('#panier').style.display = "none";}else{document.querySelector('#panier').style.display = "block";}
+	
+	if (! lift){INDEX_TAB=0;POSITION=0;}
+	if (INDEX_TAB<0){INDEX_TAB=0;}
+	clear();
+ 	if ((SOLDE ==0)){
+		PHASE=9;
+		document.querySelector('#panier').style.display = "none";
+		//document.querySelector('#total').style.display = "none";
+		maj_transaction(TICKET);
+		ticket_print(TICKET,0);
+		raz_panier();
+		PHASE=0;
+		TICKET++;
+		liste_cat();
+	}
+	else
+	{
+		PHASE=3;
+		menu_haut("Paiement");
+		logo_hautg("payment.png");
+		db.transaction(function (tx) {tx.executeSql('SELECT * FROM PAIEMENT', [], liste_paye_data, errorHandler)});
+	}
+}
+function liste_paye_data(tx, results) {
+	var len = results.rows.length, i;
+	var ligne;
+	if (INDEX_TAB >=len){INDEX_TAB=len-6;}
+	if (INDEX_TAB <0){INDEX_TAB=0;}
+	if ((INDEX_TAB +6 >len)&&(INDEX_TAB>0)){INDEX_TAB--;}
+	len = len-INDEX_TAB;
+	if (len >6){len=6;}
+	for (i = 0; i < len; i++){
+		ligne="#l"+i.toString();
+		var row= results.rows.item(i+INDEX_TAB);
+		document.querySelector(ligne).innerHTML =  "<div  onclick=beep(0);paiement("+row['paye_id']+")>"+row['desi']+"<img class=sup src=images/"+row['image']+" /></div>";
+	}
+	allume(POSITION);
+}
+
+// ############        LISTE DES DEVISES    ############
+
+function verif_devise(){
+        db.transaction(function (tx) {tx.executeSql('SELECT * FROM DEVISE', [], verif_devise_data,errorHandler)}) ;
+}
+function verif_devise_data(tx,results) {
+        var len=results.rows.length;
+      //  alert(len);
+        if (len<4){create_devise();alert("pb devise merci de valider et rebooter le tpe");}
+}                                                      
+
+function init_devise(){
+        db.transaction(function (tx) {tx.executeSql('SELECT * FROM DEVISE order by devise_id', [], init_devise_data,errorHandler)}) ;
+}
+function init_devise_data(tx,results) {
+        document.querySelector('#liste_dev').innerHTML = "";
+        var i=0
+        for (i = 0; i < results.rows.length; i++){
+                DESI_DEV[i]=results.rows.item(i).tri;
+                COURS[0][i]=results.rows.item(i).cours;
+                if (results.rows.item(i).cours>0){
+		  COURS[4][i]=Math.floor(results.rows.item(4).cours/results.rows.item(i).cours);
+		  COURS[1][i]=Math.floor(results.rows.item(1).cours/results.rows.item(i).cours);
+	        }
+                if (results.rows.item(i).cours>0){
+           	  document.querySelector('#liste_dev').innerHTML += "<input type=button onclick=beep(0);modif_pa("+i+") value="+results.rows.item(i).desi+">";
+		}
+		if (results.rows.item(i).pays==1){PAYS_REF=i;}
+        }   
+        //alert(COURS[0][3]);
+        TOTAL_PANIER+=0;
+        document.querySelector('#total').innerHTML = TOTAL_PANIER+"<span class=mini>"+DESI_DEV[DEVISE_BOUTIQUE]+"</span>";
+}      
+
+function total_dev(flag){
+	if (flag){document.querySelector('#total_dev').style.display = "none";}
+	else {
+		if (TOTAL_PANIER >0){
+			document.querySelector('#total_dev').innerHTML="";
+			document.querySelector('#total_dev').style.display = "block";
+			for (var i=0;i<DESI_DEV.length;i++){
+			        if (COURS[0][i]>0){
+				  document.querySelector('#total_dev').innerHTML+=convert(TOTAL_PANIER,i)+"<span class=dev>"+DESI_DEV[i]+"</span><br />";
+				}
+			}
+		}
+	}
+}	
+
+
+// ############        INFO VOL    ############
+function info_vol(){
+	menu_haut("Info vol");
+	PHASE=70;
+	document.querySelector("#popup_vol").style.display="block";
+	document.querySelector("#vol").value="";
+	document.querySelector("#vol").focus();
+	document.querySelector("#ok_vol").style.display="inline";
+}
+
+// ############        LISTE DES PNCS    ############
+function liste_pnc(lift){
+	if (! lift){INDEX_TAB=0;POSITION=0;}
+	if (INDEX_TAB<0){INDEX_TAB=0;}
+	clear();
+	PHASE=6;
+	menu_haut("Pnc");
+	document.querySelector("#l0").innerHTML =  "<div onclick=beep(0);popup_pnc_in()>Ajout</div>";
+	db.transaction(function (tx) {tx.executeSql('SELECT * FROM PNC where rot=?', [ROT],liste_pnc_data, errorHandler)}); 
+}
+function liste_pnc_data(tx, results) {
+	var len = results.rows.length, i;
+	var ligne;
+	if (INDEX_TAB >=len){INDEX_TAB=len-5;}
+	if (INDEX_TAB <0){INDEX_TAB=0;}
+	if ((INDEX_TAB +5 >len)&&(INDEX_TAB>0)){INDEX_TAB--;}
+	len = len-INDEX_TAB;
+	if (len >5){len=5;}
+	for (i = 0; i < len; i++){
+		ligne="#l"+(i+1).toString();
+		document.querySelector(ligne).innerHTML =  "<div >"+results.rows.item(i+INDEX_TAB).trigramme+"</div><img class=sup src=images/b_drop.png onclick=sup_pnc("+results.rows.item(i+INDEX_TAB).pnc_id+") />";
+	}
+	allume(POSITION);
+}
+
+// ############        LISTE PANIER TICKET   ############
+
+function ticket_print(index,sup){
+	db.transaction(function (tx) {
+		tx.executeSql('select * FROM VENTE  WHERE rot=? and vente_id=?', [ROT,index],function(tx,results){
+			var len = results.rows.length;
+			if (len >0){
+				print_on();
+				DESI_PRINT ="--------------------------------"+NL;
+				DESI_PRINT +="DUTY FREE CONCEPT"+NL;
+				DESI_PRINT +="contact@dutyfreeconcept.com"+NL;
+				DESI_PRINT +=datefr()+NL;
+				if (sup) {DESI_PRINT +="Annulation Ticket no:"+index+NL;}
+				else{DESI_PRINT +="Ticket no:"+index+" Leg:"+ROT+NL;}
+				tx.executeSql('SELECT *  FROM VOL where rot=?', [ROT], 
+				function (tx,results){
+					if (results.rows.length==1){
+						var row= results.rows.item(0);
+						DESI_PRINT+="Vol:"+row['novol']+" "+row['depart']+" "+row['arrive']+NL;
+					}
+				}, errorHandler);
+				DESI_PRINT +="--------------------------------"+NL;
+				tx.executeSql('SELECT produit_id,produit.desi,vente.montant FROM VENTE,PRODUIT where rot=? and vente.prod=produit_id and vente_id=?  and type="P" ', [ROT,index],
+				function (tx,results) {
+					var total_panier=0;
+					var len = results.rows.length;
+					for (var i = 0; i < len; i++){
+						DESI_PRINT+=results.rows.item(i).desi+tab(results.rows.item(i).desi.length,28-results.rows.item(i).montant.toString().length)+results.rows.item(i).montant+DESI_DEV[DEVISE_BOUTIQUE]+NL;
+						total_panier+=results.rows.item(i).montant;
+					}
+					if (len==0){
+						DESI_PRINT+="*** LISTE VIDE ***"+NL;
+					}
+					else {
+						DESI_PRINT+="Nombre d'article:"+len.toString()+NL;
+					}
+					if (sup) TOTAL_PANIER*=-1;
+					DESI_PRINT+="TOTAL:"+tab(6,28-total_panier.toString().length)+total_panier+DESI_DEV[DEVISE_BOUTIQUE]+NL;
+				},errorHandler);
+				
+				tx.executeSql('SELECT type,montant,devise FROM VENTE where rot=? and vente_id=?  and type!="P" ', [ROT,index],
+				function (tx, results) {
+					DESI_PRINT  +="Reglement"+NL;
+					var len = results.rows.length;
+					var mode="";
+					for (var i = 0; i < len; i++){
+						switch (results.rows.item(i).type){
+							case "E":mode="Especes";break;
+							case "CB":mode="Carte";break;
+							case "CH":mode="Cheque";break;
+							case "VO":mode="Voucher";break;
+						}		
+					if (results.rows.item(i).type !="R") {
+							DESI_PRINT+=mode+tab(mode.length,28-results.rows.item(i).montant.toString().length)+results.rows.item(i).montant+results.rows.item(i).devise+NL;
+						}
+					}
+					var first=1;
+					for (var i = 0; i < len; i++){
+							if (results.rows.item(i).type =="R"){
+								if (first){DESI_PRINT  +="Rendu"+NL;first=0;}
+								mode="Especes";
+								DESI_PRINT+=mode+tab(mode.length,28-results.rows.item(i).montant.toString().length)+results.rows.item(i).montant+results.rows.item(i).devise+NL;
+							}
+					}
+					DESI_PRINT+="Ce ticket de caisse fait office"+NL;
+					DESI_PRINT+="de garantie à présenter"+NL;
+					DESI_PRINT+="---------FIN TICKET ------------"+NL;
+					print(DESI_PRINT,1);
+					if (sk20) YT.UI.confirmDialog.show("Duplicata Ticket No "+index+ " ?",function (state) { if (state) ticket_print(index,sup);},"Oui","Non"); 
+					      //else if (confirm("Duplicata Ticket No "+index+ " ?")) ticket_print(index,sup);
+				},errorHandler);
+			}
+			else dialog("Ticket Inexistant");
+	},errorHandler)});							
+}
+
+// ############        FIN SERVICE    ############
+
+function fin_service(){
+	PHASE=-13;
+	db.transaction(function (tx) {
+		tx.executeSql('SELECT *  FROM PNC where rot=?', [ROT], 
+			function(tx,results) {
+				var len = results.rows.length+0;
+				var i;
+				if (len<1 && sk20){
+					dialog("Impossible Liste PNC Vide");
+					PHASE=-1;
+				}
+				else {
+					print_on();
+					DESI_PRINT ="--------------------------------"+NL;
+					DESI_PRINT +="DUTY FREE CONCEPT"+NL;
+					DESI_PRINT +=datefr()+NL;
+					DESI_PRINT +="Fiche de caisse rotation no:"+ROT+NL;
+					DESI_PRINT+="Equipage:"+NL;
+					for (i = 0; i < len; i++){
+						DESI_PRINT+=results.rows.item(i).trigramme+NL;
+					}
+					DESI_PRINT +="--------------------------------"+NL;
+					tx.executeSql('SELECT count(*) as nb,produit.desi,vente.montant ,devise FROM VENTE,PRODUIT where rot=? and vente.prod=produit_id and type="P" group by vente.devise,produit_id', [ROT], liste_vente_data, errorHandler);
+				}
+			},errorHandler)});
+	  PHASE=-1;
+}
+function liste_vente_data(tx, results) {
+	DESI_PRINT+="VENTES"+NL;
+	var len = results.rows.length, i;
+	var desi,nb,total;
+	var devise="";
+	var ca= new Array();
+	for (i = 0; i < len; i++){
+		if (i==0) { devise=results.rows.item(i).devise;ca[devise]=0;}
+		if (results.rows.item(i).devise != devise) {
+			if (ca[devise]!=0) {
+				DESI_PRINT+=tab(0,24)+"-------"+NL;
+				DESI_PRINT+="Chiffre d'affaire:"+tab(18,28-ca[devise].toString().length)+ca[devise]+devise+NL;
+			}
+			devise=results.rows.item(i).devise;
+			ca[devise]=0;
+		}
+		desi=results.rows.item(i).desi;
+		nb=results.rows.item(i).nb;
+		total=results.rows.item(i).montant*results.rows.item(i).nb;
+		DESI_PRINT+=desi+tab(desi.length,21-nb.toString().length)+nb+tab(0,7-total.toString().length)+total+results.rows.item(i).devise+NL;
+		ca[devise]+=total;
+	}
+	if (ca[devise]+0!=0) {
+		DESI_PRINT+=tab(0,24)+"-------"+NL;
+		DESI_PRINT+="Chiffre d'affaire:"+tab(18,28-ca[devise].toString().length)+ca[devise]+devise+NL;
+	}
+	tx.executeSql('SELECT devise,sum(montant) as total FROM VENTE where rot=?  and (type="E" or type="R") and devise not like NULL group by devise ', [ROT],
+	
+	function (tx, results) {
+		DESI_PRINT +=NL+"CAISSE"+NL;
+		var len = results.rows.length;
+		for (var i = 0; i < len; i++){
+			DESI_PRINT+="Total "+results.rows.item(i).devise+":"+tab(7+results.rows.item(i).devise.length,28-results.rows.item(i).total.toString().length)+results.rows.item(i).total+NL;
+		}
+		tx.executeSql('SELECT montant,devise FROM VENTE where rot=?  and type="CH" ', [ROT],
+		function (tx, results) {
+			var len = results.rows.length;
+			var total=0;
+			var nbli=0;
+			for (var i = 0; i < len; i++){
+				total+=parseInt(results.rows.item(i).montant);
+				DESI_PRINT+="Cheque "+tab(7,21-results.rows.item(i).montant.toString().length)+results.rows.item(i).montant+results.rows.item(i).devise+NL;
+				nbli++;
+			}
+			tx.executeSql('SELECT montant FROM VENTE where rot=?  and type="CB" ', [ROT],
+			function (tx, results) {
+				var len = results.rows.length;
+				var total=0;
+				var nbli=0;
+				for (var i = 0; i < len; i++){
+					total+=parseInt(results.rows.item(i).montant);
+					DESI_PRINT+="Carte Eu"+tab(8,21-results.rows.item(i).montant.toString().length)+results.rows.item(i).montant+NL;
+					nbli++;
+				}
+				if (nbli) DESI_PRINT+="Total Carte "+tab(12,21-nbli.toString().length)+nbli+tab(0,7-total.toString().length)+total+NL;
+				tx.executeSql('SELECT montant,devise FROM VENTE where rot=?  and type="V" ', [ROT],
+				function (tx, results) {
+					var len = results.rows.length;
+					var total=0;
+					var nbli=0;
+					for (var i = 0; i < len; i++){
+						total+=parseInt(results.rows.item(i).montant);
+						DESI_PRINT+="Voucher "+results.rows.item(i).devise+tab(8+results.rows.item(i).devise.length,21-results.rows.item(i).montant.toString().length)+results.rows.item(i).montant+results.rows.item(i).devise+NL;
+						nbli++;
+					}
+					DESI_PRINT+="---------FIN CAISSE ------------"+NL;
+					print(DESI_PRINT,1);
+					if (sk20) YT.UI.confirmDialog.show("Fermeture de la vente ?",function (state) { if (state) ferme_vente();},"Oui","Non"); else if (confirm("Fermeture de la vente ?")) ferme_vente();
+				},errorHandler);	
+			},errorHandler);	
+		},errorHandler);		
+	},errorHandler)
+}
+
+
+// ############        GESTION TICKET   ############
+
+function liste_ticket(lift){
+	if (! lift){INDEX_TAB=0;POSITION=0;}
+	if (INDEX_TAB<0){INDEX_TAB=0;}
+	clear();
+	PHASE=7;
+	menu_haut("Ticket");
+	document.querySelector("#l0").innerHTML =  "<div   onclick=beep(0);ticket_again()>Réedition</div>";
+	document.querySelector("#l1").innerHTML =  "<div   onclick=beep(0);ticket_sup()>Suppression</div>";
+	allume(POSITION);
+}
+
+function bascule_dev (){
+	if (DEVISE_BOUTIQUE==PAYS_REF) {
+		DEVISE_BOUTIQUE=0;
+		DEVISE_PA=0;
+	}	
+	else{
+		DEVISE_BOUTIQUE=PAYS_REF;
+		DEVISE_PA=PAYS_REF;
+		SENS[PAYS_REF]=1;
+	}
+	//document.querySelector('#total').style.display = "block";
+	document.querySelector('#total').innerHTML = TOTAL_PANIER+"<span class=mini>"+DESI_DEV[DEVISE_BOUTIQUE]+"</span>";
+	db.transaction(function (tx) {
+		tx.executeSql('SELECT sum(montant) as total  fROM VENTE where rot=? and type="P" and devise=?', [ROT,DESI_DEV[DEVISE_BOUTIQUE]], maj_ca, errorHandler);
+	});
+	if (sk20) YT.UI.confirmDialog.show("Passage de la boutique en "+DESI_DEV[DEVISE_BOUTIQUE] ,null,"OK"); else alert("Passage de la boutique en "+DESI_DEV[DEVISE_BOUTIQUE]);
+}
+	
+
+
+// ############        POPUP    ############
+function popup_scan_in(){
+	document.querySelector("#popup_scan").style.display="block";
+	document.querySelector("#prodscan").innerHTML="";
+	PHASE=100;
+}
+function popup_printer_in(){
+	document.querySelector("#popup_printer").style.display="block";
+	PHASE=101;
+}
+
+function popup_scan_out(){
+	document.querySelector("#popup_scan").style.display="none";
+	liste_panier(0);
+}
+function popup_printer_out(){
+	document.querySelector("#popup_printer").style.display="none";
+	liste_admin(0);
+}
+
+
+
+function accueil_off(){
+	document.querySelector("#accueil").style.display="none";
+	formation(2);
+	info_vol();
+}	
+
+function popup_panier_in(index){
+	document.querySelector("#popup_panier").style.display="block";
+	ID=index;
+	PHASE=20;
+}
+function popup_panier_out(click){
+	document.querySelector("#popup_panier").style.display="none";
+	if (click==1){
+		ajoute_panier(ID);
+	}
+	PHASE=2;
+}
+
+function popup_pnc_out(index){
+	if (index){
+		var pnc=document.querySelector("#pnc").value;
+		if (pnc !=""){
+			db.transaction(function (tx) {
+				tx.executeSql('INSERT INTO PNC (rot,trigramme) VALUES (?,?)', [ROT,pnc],nullDataHandler, errorHandler);
+			});
+		}
+	}
+	document.querySelector("#popup_pnc").style.display="none";
+	liste_pnc(0);
+}
+function popup_cal_out(){
+	document.removeEventListener("keypress", manage_keyboard, false);
+	document.addEventListener("keypress", manage_keyboard_main, false);
+	document.querySelector("#popup_cal").style.display="none";
+	CAL=0;
+}
+
+function popup_vol_out(){
+	var novol=document.querySelector("#novol").value;
+	var depart=document.querySelector("#depart").value;
+	var arrive=document.querySelector("#arrive").value;
+	var date=datefr();
+	db.transaction(function (tx) {
+		tx.executeSql('REPLACE INTO VOL (rot,novol,date,depart,arrive) VALUES (?,?,?,?,?)', [ROT,novol,date,depart,arrive],nullDataHandler, errorHandler);
+	});
+	document.querySelector("#popup_vol").style.display="none";
+	liste_cat(0);
+}
+
+function popup_pnc_in(){
+	PHASE=60;
+	document.querySelector("#popup_pnc").style.display="block";
+	document.querySelector("#pnc").value="";
+	document.querySelector("#pnc").focus();
+}
+function popup_cal_in(){
+	document.removeEventListener("keypress", manage_keyboard_main, false);
+	document.addEventListener("keypress", manage_keyboard, false);
+	document.querySelector("#popup_cal").style.display="block";
+	f_calc('calc','ce');
+}
+
+
+function sup_pnc(index){
+	beep(1);
+	db.transaction(function (tx) {
+		tx.executeSql('DELETE FROM PNC  WHERE rot=? and pnc_id=?', [ROT,index],nullDataHandler, errorHandler);
+	});
+	liste_pnc(0);
+}
+function raz_panier(){
+	TOTAL_PANIER=0;
+	db.transaction(function (tx) {
+		tx.executeSql('DELETE FROM REGLE',[],nullDataHandler, errorHandler);
+		tx.executeSql('SELECT sum(montant) as total  fROM VENTE where rot=? and type="P" and devise=?', [ROT,DESI_DEV[DEVISE_BOUTIQUE]], maj_ca, errorHandler);
+		tx.executeSql('DELETE FROM PANIER', [], liste_paye_data, errorHandler)});
+	
+}
+function ajoute_panier(index){
+	db.transaction(function (tx) {
+		tx.executeSql('SELECT prix0,prix1 FROM PRODUIT where produit_id=?', [index], function(tx,results){
+		var prix=0;
+		if (DEVISE_BOUTIQUE==0) prix=results.rows.item(0).prix0; else prix=results.rows.item(0).prix1; 
+		tx.executeSql('INSERT INTO PANIER (prod,montant) VALUES (?,?)', [index,prix],nullDataHandler, errorHandler);
+	},errorHandler)});
+	liste_panier(0);
+}
+
+
+function ajoute_panierbarre(index){
+ //alert(index.toString());
+	db.transaction(function (tx) {
+		tx.executeSql('SELECT produit_id,desi,prix0,prix1 FROM PRODUIT where barrecode=?', [index.toString()], function(tx,results){
+		var len = results.rows.length;
+		var prix=0;
+		if (len >0){
+			//document.querySelector("#prodscan").innerHTML=results.rows.item(0).desi;
+			if (DEVISE_BOUTIQUE==0) prix=results.rows.item(0).prix0; else prix=results.rows.item(0).prix1; 
+			tx.executeSql('INSERT INTO PANIER (prod,montant) VALUES (?,?)', [results.rows.item(0).produit_id,prix],nullDataHandler, errorHandler);
+		}
+		else
+		{
+			//document.querySelector("#prodscan").innerHTML="Produit inconnu";
+			alert("Produit inconnu");
+			
+		}
+		}, errorHandler)});
+	//popup_scan_out();
+	      liste_panier(0);
+}
+
+function sup_panier(index){
+	beep(1);
+	db.transaction(function (tx) {
+		tx.executeSql('DELETE FROM PANIER  WHERE panier_id=?', [index],nullDataHandler, errorHandler);
+	});
+	liste_panier(0);
+}
+function ticket_again(){
+	PHASE=71;
+	document.querySelector("#int").style.display="inline";
+	document.querySelector("#liste_dev").style.display="none";
+	popup_int_in("Numero de ticket");
+}
+function ticket_sup(){
+	PHASE=72;
+	document.querySelector("#int").style.display="inline";
+	document.querySelector("#liste_dev").style.display="none";
+	popup_int_in("Suppression du ticket no:");
+}
+function scan_tri(){
+	PHASE=99;
+	document.querySelector("#int").style.display="inline";
+	document.querySelector("#liste_dev").style.display="none";
+	popup_int_in("Code produit:");
+}
+
+function popup_on_in(mess){
+	document.querySelector("#mess_on").innerHTML=mess;
+	document.querySelector("#popup_on").style.display="block";
+
+}	
+
+function ferme_vente(){
+	db.transaction(function (tx) {
+					tx.executeSql('INSERT INTO VENTE (rot,vente_id,type,desi) VALUES (?,?,?,?)', [ROT,TICKET,"F","FIN"],nullDataHandler, errorHandler);
+			});
+	raz_panier();
+	PHASE=0;
+	init_rot();
+	liste_cat(0);
+}
+
+function popup_on_out(flag){
+	document.querySelector("#mess_on").innerHTML="";
+	document.querySelector("#popup_on").style.display="none";
+	//alert(PHASE);
+	switch (PHASE) {
+		case -14:
+			if (flag==1){
+				ROT--;
+				db.transaction(function (tx) {
+					tx.executeSql('DELETE FROM VENTE WHERE rot=? and type="F"', [ROT], nullDataHandler, errorHandler);
+					tx.executeSql('SELECT max(vente_id) as max  fROM VENTE where rot=?', [ROT], maj_ticket, errorHandler);
+				});
+				raz_panier();
+				PHASE=0;
+				liste_cat(0);
+			}
+			break;
+		case -13:
+			if (flag==1){
+				db.transaction(function (tx) {
+						tx.executeSql('INSERT INTO VENTE (rot,vente_id,type,desi) VALUES (?,?,?,?)', [ROT,TICKET,"F","FIN"],nullDataHandler, errorHandler);
+				});
+				raz_panier();
+				PHASE=0;
+				init_rot();
+				liste_cat(0);
+			}
+			break;
+	}
+}
+
+function popup_int_in(mess){
+	document.querySelector("#mess_int").innerHTML=mess;
+	document.querySelector("#popup_int").style.display="block";
+	document.querySelector("#int").focus();
+}	
+function popup_int_out(flag){
+	document.querySelector("#mess_int").innerHTML="";
+	var result=document.querySelector("#int").value;
+	document.querySelector("#int").value="";
+	document.querySelector("#popup_int").style.display="none";
+	switch(PHASE){
+		
+		case PH_ESPECE:	
+			if (result=="") result=SOLDE_DEV;
+			if (flag==1) result=0;
+			if (result>0) set_regle("E",result,DESI_DEV[DEVISE_PA]);
+			//alert("solde_dev:"+SOLDE_DEV+"solde:"+SOLDE+" "+"result:"+result+"devise_pa:"+DEVISE_PA);
+			SOLDE=deconvert(SOLDE_DEV-result,DEVISE_PA);
+			EN_COURS=0;
+			flecheg_img("on");
+			scan_img("on");
+			if (SOLDE >0){
+				if (SOLDE != TOTAL_PANIER) EN_COURS=1;
+				flecheg_img("off");
+				scan_img("off");
+				PHASE=41;
+				dialog("Solde:"+SOLDE.toString()+DESI_DEV[DEVISE_BOUTIQUE]);
+				DEVISE_PA=DEVISE_BOUTIQUE;
+				SOLDE_DEV=SOLDE;
+				liste_paye(0);
+			}
+			else if (SOLDE <0){
+				DEVISE_PA_INIT=DEVISE_PA;
+				DEVISE_PA=DEVISE_BOUTIQUE;
+				SOLDE_INIT=result-SOLDE_DEV;
+				SOLDE=0-SOLDE;
+				SOLDE_DEV=SOLDE;
+				PHASE=42;
+				document.querySelector("#int").value="";
+				document.querySelector("#int").style.display="none";
+				popup_int_in("A Rendre:"+SOLDE.toString()+"<span class=mini>"+DESI_DEV[DEVISE_BOUTIQUE]+"</span>");
+			}
+			else {
+					liste_paye(0);
+			}	
+			break;
+		case 42:	
+			set_regle("R",SOLDE_DEV*-1,DESI_DEV[DEVISE_PA]);
+			SOLDE=0;
+			SOLDE_DEV=0;
+			DEVISE_PA=DEVISE_BOUTIQUE;
+			liste_paye(0);
+			break;
+		case 71:
+			if (result!="") ticket_print(parseInt(result),0);
+			PHASE=7;
+			break;
+		case 72:
+			if (result!=""){
+				ticket_print(parseInt(result),1);
+				sup_ticket(parseInt(result));
+			}
+			PHASE=7;
+			break;
+		case 99:
+			if (result!=""){
+				ajoute_panierbarre(parseInt(result));
+				liste_cat(1);
+			}
+			PHASE=2;
+			break;	
+	}
+	
+}
+function sup_ticket(index){
+	db.transaction(function (tx) {
+		tx.executeSql('select * FROM VENTE  WHERE rot=? and vente_id=?', [ROT,index],function(tx,results){
+			var len = results.rows.length;
+			if (len >0){
+				tx.executeSql('DELETE FROM VENTE  WHERE rot=? and vente_id=?', [ROT,index],nullDataHandler, errorHandler);
+				tx.executeSql('SELECT sum(montant) as total  fROM VENTE where rot=? and type="P" and devise=?', [ROT,DESI_DEV[DEVISE_BOUTIQUE]], maj_ca, errorHandler);
+			}
+			else { 
+				dialog("Ticket inexistant");
+			}
+		}, errorHandler);
+	
+	});
+
+}
+
+// ############        ETC    ############
+
+function retour(){
+	switch(PHASE) {
+		case 0:
+			liste_gestion(0);
+			break;
+		case -1:
+			liste_admin(0);
+			break;
+		case 6:
+			liste_gestion(0);
+			break;
+		default:	
+			liste_cat(0);
+			break;
+	}
+}
+function allume(index){
+	var ligne="#l"+index.toString();
+	if (document.querySelector(ligne).innerHTML!=""){
+		for (var i = 0; i < 6; i++){
+			ligne="#l"+i.toString();
+			document.querySelector(ligne).style.backgroundColor="blue";
+		}
+		ligne="#l"+index.toString();
+		document.querySelector(ligne).style.backgroundColor="white";
+		POSITION=index;
+	}
+}
+function tab(nb,dist){
+	var chaine="";
+	for (var i=dist-nb;i>0;i--){
+		chaine+=" ";
+	}
+	return(chaine);
+}
+	
+function clear(){
+	for (var i = 0; i < 6; i++){
+		ligne="#l"+i.toString();
+		document.querySelector(ligne).innerHTML =  "";
+		document.querySelector(ligne).style.backgroundColor="blue";
+	}
+}
+function line_updown(inc){
+	if (((inc==-1)&&(POSITION >0)) || ((inc==1) && (POSITION <5))) {allume(POSITION+inc);}else {
+		INDEX_TAB+=inc;
+		switch(PHASE){
+			case -2:liste_admin(1);break;
+			case -1:liste_gestion(1);break;
+			case 0:liste_cat(1);break;
+			case 1:liste_prod(1,CATEGORIE);break;
+			case 2:liste_panier(1);break;
+			case 3:liste_paye(1);break;
+		}
+	}
+}
+function errorHandler(transaction, error)
+{
+   alert('Oops.  Error was '+error.message+' (Code '+error.code+')');
+    var we_think_this_error_is_fatal = true;
+    if (we_think_this_error_is_fatal) return true;
+    return false;
+}
+function nullDataHandler(transaction, results) { }
+
+function flecheg_img(flag){
+	if (flag=="off")  document.querySelector('#flecheg').style.display = "none"; else document.querySelector('#flecheg').style.display = "block";
+}
+function scan_img(flag){
+	if (flag=="off")  document.querySelector('#scan').style.display = "none"; else document.querySelector('#scan').style.display = "block";
+}
+		
+
+// ############        BIN    ############
+
+
+var VISA = {
+	carte: function() {
+		var amount = Math.floor(SOLDE_DEV * 100);
+		RemoteClient.startTransaction(
+			VISA.handlePaymentResult, {
+				amount : amount,
+				transactionType : "0",
+				currencyCode : "978",
+				alwaysForce : true,
+				autoAcceptorCard : true
+			}
+		);
+	},
+
+	handlePaymentResult : function(result) {
+		if (result.approved){ 
+			YT.UI.confirmDialog.show("Payement accepte",null,"OK");
+			set_regle("CB",SOLDE_DEV,"Eur");
+			SOLDE=0;
+			SOLDE_DEV=0;
+		}
+		else{
+			YT.UI.confirmDialog.show("Payement refuse",null,"OK");
+		}
+		init_printer();
+		window.focus();
+		liste_paye(0);
+	},
+
+	remise:function(){
+		RemoteClient.transactionList( function handler(trxList) {
+			print_on();
+			var len = trxList.length;
+			if (len > 0) {
+				DESI_PRINT="Nombre des transactions : "+len.toString()+NL;
+				for (var i = 0; i < len; i++){
+					var trx = trxList[i];
+					DESI_PRINT="";
+					DESI_PRINT+="Id : " + trx.transactionId+NL;
+				//	DESI_PRINT+="key : " + trx.key+NL;
+				//	DESI_PRINT+="trxType : " + trx.trxType+NL;
+					DESI_PRINT+="amount : " + trx.amount+NL;
+				//	DESI_PRINT+="currencyCode :" + trx.currencyCode+NL;
+					DESI_PRINT+="approved : " + trx.transactionType != 57 ? "true" : "false"+NL;
+					DESI_PRINT+="cancelled : " + trx.cancelled+NL;
+					DESI_PRINT+="entryMode : " + trx.entryMode+NL;
+				}
+			} else { DESI_PRINT="Pas de transactions enregistrées"+NL;}
+				print(DESI_PRINT,1);
+
+			YT.UI.messageDialog.show("Remise en cours");
+
+			RemoteClient.startTLC(function(result) {
+				if (result) {
+//					DESI_PRINT="Nombre de remise transmise:"+result.data.transactions.total.toString()+NL;
+//					DESI_PRINT+="Montant total accepté:"+result.data["0"].totalAmount.toString()+NL;
+					print(result.ticket,1);
+				}
+				else
+				{
+					YT.UI.confirmDialog.show( "Echec remise", null, "Ok");
+				}
+			});
+		})
+	},
+
+	teleparametrage:function(){
+		YT.UI.messageDialog.show("Téléparamétrage en cours");
+		RemoteClient.startTLP(function(result, error) {
+			if (error) {
+				YT.UI.confirmDialog.show( "Echec téléparamétrage", null, "Ok");
+			}
+			else
+			{
+				YT.UI.confirmDialog.show( "Le téléparametrage est réussi", null, "Ok");
+			}
+			var DB = openDatabase("CB","","CB",200000);
+			DB.transaction(function(trx){
+				trx.executeSql("update BIN_RANGE set LEVEL=0 where LEVEL=1;",[],null,function(err){
+					return false;
+				});
+				trx.executeSql("insert into BIN_RANGE values (?,?,?,?)",["1000000000000000000", "3999999999999999999", 2, 8],null,function(err){
+					return false;
+				});
+				trx.executeSql("insert into BIN_RANGE values (?,?,?,?)",["4728530000000000000", "4728539999999999999", 2, 8],null,function(err){
+					return false;
+				});
+				trx.executeSql("insert into BIN_RANGE values (?,?,?,?)",["5000000000000000000", "9999999999999999999", 2, 8],null,function(err){
+					return false;
+				});
+			});
+		});
+	}
+};
+
+function init_rot(){
+	db.transaction(function (tx) {
+		tx.executeSql('SELECT max(rot) as max  fROM VENTE where type="F"', [], maj_rot, errorHandler);
+	});
+}
+
+function paiement(index) {
+	clear();
+	switch(index){
+		case 0: //espece
+			formation(14);
+			PHASE=40;
+			document.querySelector("#int").style.display="inline";
+			document.querySelector("#liste_dev").style.display="block";
+
+			if (SOLDE==TOTAL_PANIER){popup_int_in("Montant:"+SOLDE.toString()+"<span class=mini>"+DESI_DEV[DEVISE_BOUTIQUE]+"</span>");}
+			else {popup_int_in("Solde:"+SOLDE.toString()+"<span class=mini>"+DESI_DEV[DEVISE_BOUTIQUE]+"</span>");}
+		break;
+		
+		case 1: //cb
+			SOLDE_DEV=convert(SOLDE,0);
+			if (SOLDE_DEV<=300){
+				if (sk20) {VISA.carte();}
+				else {
+					set_regle("CB",SOLDE_DEV,"Eur");
+					SOLDE=0;
+					liste_paye(0);
+				}
+			}
+			else {alert("montant trop important");}	
+		break;
+		case 2: //cheque
+			set_regle("CH",SOLDE,DESI_DEV[DEVISE_BOUTIQUE]);
+			SOLDE=0;
+			liste_paye(0);
+			
+		break;
+		case 3: //voucher
+			set_regle("VO",SOLDE,DESI_DEV[DEVISE_BOUTIQUE]);
+			SOLDE=0;
+			liste_paye(0);
+		break;
+	}
+}
+
+function modif_pa(valeur) {
+	DEVISE_PA=valeur;
+	SOLDE_DEV=convert(SOLDE,DEVISE_PA);
+	if (PHASE==42){
+		if (DEVISE_PA==DEVISE_PA_INIT){SOLDE_DEV=SOLDE_INIT;}
+		popup_int_in("A Rendre:"+SOLDE_DEV.toString()+"<span class=mini>"+DESI_DEV[DEVISE_PA]+"</span>");
+	}
+	else
+	{
+		document.querySelector("#int").style.display="inline";
+		if (SOLDE==TOTAL_PANIER){popup_int_in("Montant:"+SOLDE_DEV.toString()+"<span class=mini>"+DESI_DEV[DEVISE_PA]+"</span>");}
+		else {popup_int_in("Solde:"+SOLDE_DEV.toString()+"<span class=mini>"+DESI_DEV[DEVISE_PA]+"</span>");}
+	}
+}
+function convert(montant,devise){
+	var resultat=0;
+	if (SENS[DEVISE_BOUTIQUE]==0) resultat=Math.round(montant*COURS[DEVISE_BOUTIQUE][devise]); else 
+	{
+	resultat=Math.round(montant/COURS[DEVISE_BOUTIQUE][devise]);
+	}
+	if ((devise==1) || (devise==2)) {resultat=round_xof(resultat);}
+	if (devise==4) {resultat=round_cve(resultat);} 
+	return(resultat);
+}
+function deconvert(montant,devise){
+	var resultat=0;
+	if (SENS[DEVISE_BOUTIQUE]==0) resultat=Math.round(montant/COURS[DEVISE_BOUTIQUE][devise]); else resultat=Math.round(montant*COURS[DEVISE_BOUTIQUE][devise]); 
+	if (DEVISE_BOUTIQUE==1) {resultat=round_xof(resultat);}
+	if (DEVISE_BOUTIQUE==4) {resultat=round_cve(resultat);}
+	return(resultat);
+}
+
+function round_cve(montant){
+	if (Math.abs(montant%100)>70){montant=Math.floor(montant/100)*100+100;}
+	else if  (Math.abs(montant%100)>20){montant=Math.floor(montant/100)*100+50;}
+	else  montant=Math.floor(montant/100)*100;
+	return(montant);
+}
+
+function round_xof(montant){
+	if (Math.abs(montant%1000)>700){montant=Math.floor(montant/1000)*1000+1000;}
+	else if  (Math.abs(montant%1000)>200){montant=Math.floor(montant/1000)*1000+500;}
+	else  montant=Math.floor(montant/1000)*1000;
+	return(montant);
+}
+
+
+
+
+function scan() {
+	if (sk20==1){
+		var imager=YTimager.open();
+		if (imager ==0){
+			YTimager.signalScanCompleted.connect(go_scan);
+			YTimager.scan(5000);
+		}
+	}
+	else
+	{
+		//ajoute_panierbarre("3346470122000");
+		ajoute_panierbarre("359671022330");
+	}
+}
+function go_scan(result){
+        YTimager.close();
+	ajoute_panierbarre(result.value);
+			
+        //alert(result.value);
+}
+
+function raz_tout(){
+	db.transaction(function (tx) {
+		tx.executeSql('DELETE FROM  VENTE',[],nullDataHandler, errorHandler);
+		tx.executeSql('DELETE FROM PANIER',[],nullDataHandler, errorHandler);
+		tx.executeSql('DELETE FROM REGLE',[],nullDataHandler, errorHandler);
+	});
+}
+
+
+function set_regle(type,montant,devise){
+	db.transaction(function (tx) {
+		tx.executeSql('INSERT INTO REGLE (type,montant,devise) VALUES (?,?,?)',[type,montant,devise],nullDataHandler, errorHandler);
+	});
+}
+
+function maj_transaction(index){
+	db.transaction(function (tx) {tx.executeSql('SELECT panier.prod,panier.montant FROM PANIER,PRODUIT where panier.prod=produit_id ', [],
+				function (tx, results) {
+					var len = results.rows.length, i;
+					for (i = 0; i < len; i++){
+						tx.executeSql('INSERT INTO VENTE (rot,vente_id,type,prod,desi,montant,devise) VALUES (?,?,?,?,?,?,?)', [ROT,index,"P",results.rows.item(i).prod,results.rows.item(i).desi,results.rows.item(i).montant,DESI_DEV[DEVISE_BOUTIQUE]],nullDataHandler, errorHandler);
+					}
+				}, errorHandler)}); 
+	db.transaction(function (tx) {tx.executeSql('SELECT * FROM REGLE ', [],
+			    function (tx, results) {
+					var len = results.rows.length, i;
+					for (i = 0; i < len; i++){
+						tx.executeSql('INSERT INTO VENTE (rot,vente_id,type,desi,montant,devise) VALUES (?,?,?,?,?,?)', [ROT,index,results.rows.item(i).type,results.rows.item(i).desi,results.rows.item(i).montant,results.rows.item(i).devise],nullDataHandler, errorHandler);
+					}
+				},errorHandler)});
+
+}
+
+function get_produit(){
+	if (sk20) {
+	 YT.UI.confirmDialog.show("Test de Connexion en cours", function() {
+		YTsystem.comm.cancel();
+	}, null, "Cancel");
+
+	 YTsystem.comm.getWIFIStrengthCompleted.connect(function(status) {	
+		YT.UI.messageDialog.hide();
+		switch(status) {
+		case 0:
+			YT.UI.confirmDialog.show("Signal ok,Connexion en cours", function() {
+								YTsystem.comm.cancel();
+							}, null, "Cancel");
+			YTsystem.comm.connectWIFICompleted.connect(function(status){
+				      switch (status) {
+						case 0:
+							YT.UI.messageDialog.hide();
+							YTsystem.disableSameOriginPolicy();
+							db.transaction(function (tx) {
+								tx.executeSql('DROP TABLE  IF EXISTS PRODUIT',[],nullDataHandler, errorHandler);
+								tx.executeSql('CREATE TABLE IF NOT EXISTS PRODUIT (produit_id INTEGER NOT NULL PRIMARY KEY,cat INTEGER,desi,prix0,prix1,barrecode CHAR(14))',[],nullDataHandler, errorHandler);
+								tx.executeSql('DROP TABLE IF EXISTS DEVISE ',[],nullDataHandler, errorHandler);
+								tx.executeSql('CREATE TABLE IF NOT EXISTS DEVISE (devise_id unique, desi,tri,cours,pays)',[],nullDataHandler, errorHandler);
+							});
+							var req = new XMLHttpRequest();
+							req.onreadystatechange = function() {
+								if (req.readyState == 4 && req.status == 200) {
+									var response  = req.responseXML.documentElement;
+									var pr_cd_pr = response.getElementsByTagName('Pr_cd_pr');
+									var cat = response.getElementsByTagName('Cat');
+									var pr_desi = response.getElementsByTagName('Pr_desi');
+									var pr_prix0 = response.getElementsByTagName('Pr_prix0');
+									var pr_prix1 = response.getElementsByTagName('Pr_prix1');
+									var pr_barre = response.getElementsByTagName('Pr_barre');
+									var dev_id = response.getElementsByTagName('Dev_id');
+									var dev_desi = response.getElementsByTagName('Dev_desi');
+									var dev_tri = response.getElementsByTagName('Dev_tri');
+									var dev_cours = response.getElementsByTagName('Dev_cours');
+									var dev_pays = response.getElementsByTagName('Dev_pays');
+									var version = response.getElementsByTagName('Version');
+									db.transaction(function (tx) {
+										for (var i = 0; i < pr_cd_pr.length; i++) 
+										{
+										tx.executeSql('INSERT INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (?,?,?,?,?,?)',[pr_cd_pr[i].childNodes[0].nodeValue,cat[i].childNodes[0].nodeValue,pr_desi[i].childNodes[0].nodeValue,pr_prix0[i].childNodes[0].nodeValue,pr_prix1[i].childNodes[0].nodeValue,pr_barre[i].childNodes[0].nodeValue],nullDataHandler, errorHandler);
+										}
+										for (var i = 0; i < dev_id.length; i++) 
+										{
+										tx.executeSql('INSERT INTO DEVISE (devise_id, desi,tri,cours,pays) VALUES (?,?,?,?,?)',[dev_id[i].childNodes[0].nodeValue,dev_desi[i].childNodes[0].nodeValue,dev_tri[i].childNodes[0].nodeValue,dev_cours[i].childNodes[0].nodeValue,dev_pays[i].childNodes[0].nodeValue],nullDataHandler, errorHandler);
+										}
+										YT.UI.confirmDialog.show("Maj "+version[0].childNodes[0].nodeValue+" effectué",null,"OK");
+										init_devise();
+									}
+										);
+								}
+							}
+							req.overrideMimeType('text/xml');
+							req.open("GET", "http://togo.oasix.fr/sk20_v2.xml", true,"sylvain","passe123"); 
+							req.send(null);
+							break;
+						default:
+							YT.UI.confirmDialog.hide();
+							YT.UI.messageDialog.show("Connection error", 2000);
+							break;
+						}
+					});
+					YTsystem.comm.connectWIFI(30000);
+					break;
+		case -5:
+					YT.UI.messageDialog.show("No WIFI configured", 4000);
+					break;
+		case -9:
+					YT.UI.messageDialog.show("Wifi network unreachable", 4000);
+					break;
+		case -10:
+					YT.UI.messageDialog.show("The WiFi signal is too weak.", 4000);
+					break;
+		default:
+					YT.UI.messageDialog.show("Connection error.", 4000);
+					break;
+	}
+	});
+	YTsystem.comm.getWIFIStrength(-80);
+	}
+	else
+	{
+			db.transaction(function (tx) {
+			tx.executeSql('DROP TABLE  IF EXISTS PRODUIT',[],nullDataHandler, errorHandler);
+			tx.executeSql('CREATE TABLE IF NOT EXISTS PRODUIT (produit_id INTEGER NOT NULL PRIMARY KEY,cat INTEGER,desi,prix0,prix1,barrecode CHAR(14))',[],nullDataHandler, errorHandler);
+		});
+		var req = new XMLHttpRequest();
+		req.onreadystatechange = function() {
+			if (req.readyState == 4 && req.status == 200) {
+				var response  = req.responseXML.documentElement;
+				var pr_cd_pr = response.getElementsByTagName('Pr_cd_pr');
+				var cat = response.getElementsByTagName('Cat');
+				var pr_desi = response.getElementsByTagName('Pr_desi');
+				var pr_prix0 = response.getElementsByTagName('Pr_prix0');
+				var pr_prix1 = response.getElementsByTagName('Pr_prix1');
+				var pr_barre = response.getElementsByTagName('Pr_barre');
+				db.transaction(function (tx) {
+					for (var i = 0; i < pr_cd_pr.length; i++) 
+					{
+						tx.executeSql('INSERT INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (?,?,?,?,?,?)',[pr_cd_pr[i].childNodes[0].nodeValue,cat[i].childNodes[0].nodeValue,pr_desi[i].childNodes[0].nodeValue,pr_prix0[i].childNodes[0].nodeValue,pr_prix1[i].childNodes[0].nodeValue,pr_barre[i].childNodes[0].nodeValue],nullDataHandler, errorHandler);
+					}
+					//dialog("Maj produit effectué");
+				}
+					);
+			}
+			else
+			{
+				// dialog("Probleme connexion serveur");
+			}
+		}
+		req.overrideMimeType('text/xml');
+		req.open("GET", "http://sk20.oasix.fr/sk20.xml", true);
+		req.send(null);
+
+	}
+} 
+
+function send_vente(){
+	YT.UI.confirmDialog.show("Test de Connexion en cours", function() {
+		YTsystem.comm.cancel();
+	}, null, "Cancel");
+
+	YTsystem.comm.getWIFIStrengthCompleted.connect(function(status) {	
+	YT.UI.messageDialog.hide();
+
+	switch(status) {
+		case 0:
+			YT.UI.confirmDialog.show("Signal ok,Connexion en cours", function() {
+								YTsystem.comm.cancel();
+							}, null, "Cancel");
+			YTsystem.comm.connectWIFICompleted.connect(function(status){
+				      switch (status) {
+						case 0:
+							YT.UI.messageDialog.hide();
+							YTsystem.disableSameOriginPolicy();
+							var xmlDocument="ko";
+							db.transaction(function (tx) {
+								tx.executeSql('SELECT * FROM VOL',[],
+								function(tx,results) {
+									var len = results.rows.length;
+									for (var i = 0; i < len; i++){
+										xmlDocument+=results.rows.item(i).rot+":"+results.rows.item(i).date+":"+results.rows.item(i).novol+":"+results.rows.item(i).depart+":"+results.rows.item(i).arrive+NL;
+									}},errorHandler);
+								tx.executeSql('SELECT * FROM VENTE',[],
+								function(tx,results) {
+									var len = results.rows.length;
+									for (var i = 0; i < len; i++){
+										xmlDocument+=results.rows.item(i).rot+":"+results.rows.item(i).vente_id+":"+results.rows.item(i).type+":"+results.rows.item(i).prod+NL;
+									}
+									
+									var req = new XMLHttpRequest();
+									req.overrideMimeType('text/xml');
+									req.onreadystatechange = function(){
+										if (req.readyState == 4 && req.status == 200) {
+										YT.UI.confirmDialog.show("Vente transmise "+req.responseText,null,"OK");
+										} 
+										else {
+										YT.UI.messageDialog.show("Vente non transmise",3000);
+										}
+										/* YTsystem.comm.disconnectNetwork();*/
+
+									};
+									
+									req.open("POST", "http://togo.oasix.fr/cgi-bin/uploadSales.pl",true,"sylvain","passe123");
+									req.send(xmlDocument);
+									
+								}
+								, errorHandler)});
+							break;
+							
+						default:
+							YT.UI.confirmDialog.hide();
+							YT.UI.messageDialog.show("Connection error", 2000);
+							break;
+						}
+					});
+					YTsystem.comm.connectWIFI(30000);
+					break;
+		case -5:
+					YT.UI.messageDialog.show("No WIFI configured", 4000);
+					break;
+		case -9:
+					YT.UI.messageDialog.show("Wifi network unreachable", 4000);
+					break;
+		case -10:
+					YT.UI.messageDialog.show("The WiFi signal is too weak.", 4000);
+					break;
+		default:
+					YT.UI.messageDialog.show("Connection error.", 4000);
+					break;
+	}
+	});
+	YTsystem.comm.getWIFIStrength(-80);
+}
+
+function check_printer() {
+	YT.UI.messageDialog.show("Searching for devices", 20000);
+	YTsystem.printer.disconnect();
+	YTbluetooth.signalScanCompleted.connect(function(devices) {
+		YT.UI.messageDialog.hide();
+		deviceList = devices;
+		var trouve=false;
+		switch (deviceList.length){
+			case 0: 
+				YT.UI.messageDialog.show("Aucune imprimante associée à ce terminal", null,"Ok");
+				break;
+			default:
+				for (var i=0;i<deviceList.length;i++){
+					var pair = YTbluetooth.checkPairing(deviceList[0].address);
+					if(pair == true) {
+						YT.UI.confirmDialog.show("Imprimante associée de ce terminal :"+deviceList[0].address, null, "Ok");
+						trouve= true;
+					}
+				}
+				if (! trouve) YT.UI.messageDialog.show("Aucune imprimante associée à ce terminal", null,"Ok");
+				break;
+		}
+	});
+	setTimeout(function() {
+		YTbluetooth.scan();
+	}, 3000);
+}
+function new_printer() {
+	YT.UI.messageDialog.show("Searching for devices", 20000);
+	YTsystem.printer.disconnect();
+	YTbluetooth.signalScanCompleted.connect(function(devices) {
+		YT.UI.messageDialog.hide();
+		deviceList = devices;
+		var trouve=false;
+		var mess="";
+		switch (deviceList.length){
+			case 0: 
+				YT.UI.messageDialog.show("Aucune imprimante trouvée", null,"Ok");
+				break;
+			default:
+				for (var i=0;i<deviceList.length;i++){
+					var pair = YTbluetooth.checkPairing(deviceList[0].address);
+					mess+=deviceList[0].address+" ";
+					if(pair == true) {
+						YTbluetooth.removePairing(deviceList[0].address);
+						trouve= true;
+					}
+				}
+				if ( trouve) YT.UI.messageDialog.show("Une imprimante présente a été supprimé , relancez la recherche", null,"Ok");
+				else {
+					if (deviceList.length>1){
+						YT.UI.messageDialog.show("Plusieurs imprimantes trouvées , relancez la recherche", null,"Ok")
+					}
+					else
+					{
+						YTbluetooth.pairingCompleted.connect(function(s) {
+						if (s == 0) {
+							YT.UI.confirmDialog.show("Imprimante "+deviceList[0].address+" Trouvée et associée à ce ce terminal, reboot", function() {
+								window.location.reload();
+							}, null, "Ok");
+						}
+						else  {
+							YT.UI.confirmDialog.show("Imprimante "+deviceList[0].address+" Trouvée mais impossible de la connecter", null, "Ok");
+						}
+						});
+						YTbluetooth.startPairing(deviceList[0].address, "0000", true);
+					}
+				}
+				break;
+		}
+	});
+	setTimeout(function() {
+		YTbluetooth.scan();
+	}, 3000);
+}
+
+function test_print() {
+		print_on();
+		print("Test impression\n\n",1)	
+}
+
+function dialog(message) {
+	if (sk20) YT.UI.confirmDialog.show(message,null,"Ok"); else alert(message);
+}
+function create_table(){
+db.transaction(function (tx) {
+tx.executeSql('DROP TABLE IF EXISTS VENTE ',[],nullDataHandler, errorHandler);
+tx.executeSql('DROP TABLE IF EXISTS REGLE ',[],nullDataHandler, errorHandler);
+tx.executeSql('DROP TABLE IF EXISTS VOL ',[],nullDataHandler, errorHandler);
+
+tx.executeSql('DROP TABLE IF EXISTS FACTURE ',[],nullDataHandler, errorHandler);
+tx.executeSql('CREATE TABLE IF NOT EXISTS FACTURE (facture_id, facture_prod,facture_prix)',[],nullDataHandler, errorHandler);
+
+tx.executeSql('DROP TABLE IF EXISTS CAT ',[],nullDataHandler, errorHandler);
+tx.executeSql('CREATE TABLE IF NOT EXISTS CAT (cat_id unique, desi,image)',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO CAT (cat_id, desi,image) VALUES (0, "Parfum Femme","women.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO CAT (cat_id, desi,image) VALUES (1, "Parfum Homme","men.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO CAT (cat_id, desi,image) VALUES (2, "Cosmetique","cosmetique.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO CAT (cat_id, desi,image) VALUES (3, "Accessoire","clock.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO CAT (cat_id, desi,image) VALUES (4, "Tabac","cigarette.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO CAT (cat_id, desi,image) VALUES (5, "Alimentation","champagne.png")',[],nullDataHandler, errorHandler);
+
+tx.executeSql('DROP TABLE IF EXISTS GESTION ',[],nullDataHandler, errorHandler);
+tx.executeSql('CREATE TABLE IF NOT EXISTS GESTION (gestion_id unique, desi,image)',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO GESTION (gestion_id, desi,image) VALUES (0, "Boutique","boutique.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO GESTION (gestion_id, desi,image) VALUES (1, "Devise","devise.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO GESTION (gestion_id, desi,image) VALUES (2, "Pnc","equipe.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO GESTION (gestion_id, desi,image) VALUES (3, "Vol","vol.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO GESTION (gestion_id, desi,image) VALUES (4, "Ticket","printer.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO GESTION (gestion_id, desi,image) VALUES (5, "Fin de service","cadena.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO GESTION (gestion_id, desi,image) VALUES (6, "Debloque","cadena_open.png")',[],nullDataHandler, errorHandler);
+
+tx.executeSql('DROP TABLE IF EXISTS ADMIN ',[],nullDataHandler, errorHandler);
+tx.executeSql('CREATE TABLE IF NOT EXISTS ADMIN (admin_id unique, desi,image)',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO ADMIN (admin_id, desi,image) VALUES (0, "Gestion","gestion.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO ADMIN (admin_id, desi,image) VALUES (1, "Maj produit","download.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO ADMIN (admin_id, desi,image) VALUES (2, "Download file","upload.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO ADMIN (admin_id, desi,image) VALUES (3, "Remise CB","cb.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO ADMIN (admin_id, desi,image) VALUES (4, "Wifi","wifi.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO ADMIN (admin_id, desi,image) VALUES (5, "Printer","printer.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO ADMIN (admin_id, desi,image) VALUES (6, "Update","update.gif")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO ADMIN (admin_id, desi,image) VALUES (7, "Time","clock.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO ADMIN (admin_id, desi,image) VALUES (8, "Teleparametrage","cb.png")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO ADMIN (admin_id, desi,image) VALUES (9, "Menu Transactor","exit.png")',[],nullDataHandler, errorHandler);
+
+
+tx.executeSql('DROP TABLE IF EXISTS MENU ',[],nullDataHandler, errorHandler);
+tx.executeSql('CREATE TABLE IF NOT EXISTS MENU (menu_id unique, desi)',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO MENU (menu_id, desi) VALUES (1, "Boutique")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO MENU (menu_id, desi) VALUES (2, "Admin")',[],nullDataHandler, errorHandler);
+
+tx.executeSql('DROP TABLE IF EXISTS PANIER ',[],nullDataHandler, errorHandler);
+tx.executeSql('CREATE TABLE PANIER (panier_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, prod INTEGER, montant INTEGER);',[],nullDataHandler, errorHandler);
+
+tx.executeSql('DROP TABLE IF EXISTS VOL ',[],nullDataHandler, errorHandler);
+tx.executeSql('CREATE TABLE VOL (rot INTEGER NOT NULL PRIMARY KEY,date,novol,depart,arrive);',[],nullDataHandler, errorHandler);
+
+tx.executeSql('DROP TABLE IF EXISTS VENTE ',[],nullDataHandler, errorHandler);
+tx.executeSql('CREATE TABLE VENTE (rot integer,vente_id,type,desi,prod,montant,devise);',[],nullDataHandler, errorHandler);
+
+tx.executeSql('DROP TABLE IF EXISTS REGLE',[],nullDataHandler, errorHandler);
+tx.executeSql('CREATE TABLE IF NOT EXISTS REGLE  (type,montant,devise)',[],nullDataHandler, errorHandler);
+  
+  
+tx.executeSql('DROP TABLE IF EXISTS PAIEMENT ',[],nullDataHandler, errorHandler);
+tx.executeSql('CREATE TABLE IF NOT EXISTS PAIEMENT (paye_id unique, desi,image)',[],nullDataHandler, errorHandler);
+  tx.executeSql('INSERT INTO PAIEMENT (paye_id, desi,image) VALUES (0, "Espece","payment.png")',[],nullDataHandler, errorHandler);
+  tx.executeSql('INSERT INTO PAIEMENT (paye_id, desi,image) VALUES (1, "CB","cb.png")',[],nullDataHandler, errorHandler);
+ 
+ 
+ tx.executeSql('DROP TABLE IF EXISTS DEVISE ',[],nullDataHandler, errorHandler);
+tx.executeSql('CREATE TABLE IF NOT EXISTS DEVISE (devise_id unique, desi,tri,cours,pays)',[],nullDataHandler, errorHandler);
+  tx.executeSql('INSERT INTO DEVISE (devise_id, desi,tri,cours,pays) VALUES (0, "Euro","EUR",1,0)',[],nullDataHandler, errorHandler);
+  tx.executeSql('INSERT INTO DEVISE (devise_id, desi,tri,cours,pays) VALUES (1, "XOF","XOF",655,1)',[],nullDataHandler, errorHandler);
+ tx.executeSql('INSERT INTO DEVISE (devise_id, desi,tri,cours,pays) VALUES (2, "XAF","XAF",655,0)',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO DEVISE (devise_id, desi,tri,cours,pays) VALUES (3, "Dollars","USD",1.13,0)',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT INTO DEVISE (devise_id, desi,tri,cours,pays) VALUES (4, "CVE","CVE",109,0)',[],nullDataHandler, errorHandler);
+
+
+  tx.executeSql('DROP TABLE IF EXISTS PNC ',[],nullDataHandler, errorHandler);
+tx.executeSql('CREATE TABLE IF NOT EXISTS PNC  (pnc_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,rot INTEGER,trigramme CHAR(3))',[],nullDataHandler, errorHandler);
+  
+
+ tx.executeSql('DROP TABLE  IF EXISTS PRODUIT',[],nullDataHandler, errorHandler);
+ tx.executeSql('CREATE TABLE IF NOT EXISTS PRODUIT (produit_id unique, cat,desi,prix0,prix1,barrecode)',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (100145,"0","Guerlain aqui m",42,29000,"123")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (100155,"0","Hugo boss nuit ",57,37500,"0")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (190110,"1","Armani coffret ",44,28000,"0")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (190095,"1","Armani code spo",52,34000,"0")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (130210,"4","Benson hedge s",21,21,"0")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (130100,"4","Marlboro red 40",37,37,"0")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (400000,"3","Makeda collier ",56,36000,"0")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (400100,"3","Aleens carre de",27,17000,"0")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (300000,"5","Mentos tube",1,1,"0")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (300010,"5","Mm 250 gr",5,5,"0")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (280180,"2","Guerlain rouge ",26,17000,"0")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (280211,"2","Lancome nutrix",32,21000,"0")',[],nullDataHandler, errorHandler);
+tx.executeSql('INSERT  INTO PRODUIT (produit_id, cat,desi,prix0,prix1,barrecode) VALUES (280207,"2","L oreal Nrj hyd",19,12000,"0")',[],nullDataHandler, errorHandler);
+
+}, function() {
+	setTimeout(function() {
+		alert("Initialization failed.\n\nApplication will restart");
+		location.reload();
+	}, 100);
+}, function() {
+	localStorage.date=new Date();
+	setTimeout(startApplication, 100);
+});
+
+}
+function create_devise(){
+  db.transaction(function (tx) {
+  tx.executeSql('DROP TABLE IF EXISTS DEVISE ',[],nullDataHandler, errorHandler);
+  tx.executeSql('CREATE TABLE IF NOT EXISTS DEVISE (devise_id unique, desi,tri,cours,pays)',[],nullDataHandler, errorHandler);
+  tx.executeSql('INSERT INTO DEVISE (devise_id, desi,tri,cours,pays) VALUES (0, "Euro","EUR",1,0)',[],nullDataHandler, errorHandler);
+  tx.executeSql('INSERT INTO DEVISE (devise_id, desi,tri,cours,pays) VALUES (1, "XOF","XOF",655,1)',[],nullDataHandler, errorHandler);
+  tx.executeSql('INSERT INTO DEVISE (devise_id, desi,tri,cours,pays) VALUES (2, "XAF","XAF",655,0)',[],nullDataHandler, errorHandler);
+  tx.executeSql('INSERT INTO DEVISE (devise_id, desi,tri,cours,pays) VALUES (3, "Dollars","USD",1.13,0)',[],nullDataHandler, errorHandler);
+  tx.executeSql('INSERT INTO DEVISE (devise_id, desi,tri,cours,pays) VALUES (4, "CVE","CVE",109,0)',[],nullDataHandler, errorHandler);
+
+  });
+}
+
+</script>
+</head>
+<body onload=debut()>
+<script>
+if( ! window.openDatabase){
+	alert("Navigateur non compatible Utilisable uniquement avec le navigateur Chrome récent");
+}
+</script>
+<div id=wait>
+	<img src=images/enter.jpg >
+	<img alt="wait" src=images/Loading.gif style=position:relative;top:-150px;left:50px;>
+</div> 
+
+<!-- <div id=wait>
+<img src=images/hotesse_transp.png>
+<img alt="wait" src=images/Loading.gif style=position:relative;top:-100px>
+</div>
+-->
+<div id=conteneur>
+	<div id=logo_hautg></div>
+	<div id=menu_haut ></div>
+	<div id=info_hautd>V1705.1</div>
+	<div id=contenu>
+		<div id=l0 class=ligne></div>
+		<div id=l1 class=ligne></div>
+		<div id=l2 class=ligne></div>
+		<div id=l3 class=ligne></div>
+		<div id=l4 class=ligne></div>
+		<div id=l5 class=ligne></div>
+	</div>
+	<div id=bandeau_bas>
+		<div id=gestion style=position:relative;top:0px;>
+			<img src=images/flecheg.png id=flechegg onclick=beep(0);retour() >
+			<span style=color:white;position:relative;top:-4px;left:-30px>Gestion</span>
+		</div>
+		<div id=batterie style=position:relative;top:0px;>
+			<img src=images/batterie.png height=22px >
+			<span id=pour style=color:white;position:relative;top:-4px;></span>
+		</div>
+	<div id=total onclick=beep(0);total_dev(0); onmouseover=formation(9)>**</div><img src=images/panier.png id=panier onclick=beep(0);liste_panier(0) onmouseover=formation(10)>
+		<img src=images/scan.png id=scan onclick=beep(0);popup_scan_in() onmouseover=formation(8)>
+	</div> 
+	<div id=bandeau_droit>
+		<img src=images/flecheh.png onclick=beep(0);line_updown(-1) style=position:relative;top:5px; onmouseover=formation(7)>
+		<img src=images/flecheb.png onclick=beep(0);line_updown(1) style=position:relative;top:180px; onmouseover=formation(4);>
+		<img src=images/flecheg2.png id=flecheg onclick=beep(0);retour() style=position:relative;top:60px;left:-10px; onmouseover=formation(5)>
+		<img src=images/flechebb.png onclick=beep(0);line_updown(6) style=position:relative;top:150px; onmouseover=formation(6)>
+	</div>
+<pre>
+	<div id=printer></div>
+</pre>
+<div id=popup_panier class=popup>
+	Ajout du même produit ?<br />
+	<input type=button value=Oui onclick=beep(0);popup_panier_out(1)>
+	<input type=button value=Non onclick=beep(1);popup_panier_out(2)>
+</div>
+<div id=popup_on class=popup>
+	<span id=mess_on></span><br />
+	<input type=button value=Oui onclick=beep(0);popup_on_out(1)>
+	<input type=button value=Non onclick=beep(1);popup_on_out(2)>
+</div>
+<div id=popup_int class=popup>
+	<span id=mess_int></span><br />
+	<input type="text"  id=int  size=3/>
+	<input type=button value=OK  id=ok_int class=ok onclick=beep(0);popup_int_out(0)>
+	<div id=liste_dev></div>
+</div>
+<div id=popup_pnc class=popup>
+	Saisir votre trigramme
+	<input type="text" data-vk="capslock" placeholder="Trigramme" id=pnc onchange=popup_pnc_out(1) maxlength="6" size="3" />
+</div>
+<div id=popup_cal class=popup>
+<table class="calculator" id="calc">
+	<tr>
+		<td colspan="4" class="calc_td_resultat">
+			<input type="text" readonly="readonly" name="calc_resultat" id="calc_resultat" class="calc_resultat" />
+		</td>
+	</tr>
+	<tr>
+		<td class="calc_td_btn">
+			<input type="button" id="CE" class="calc_btn" value="CE" onmousedown="javascript:f_calc('calc','ce');" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="&larr;" class="calc_btn" value="&larr;" onmousedown="javascript:f_calc('calc','nbs');" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="Exit" class="calc_btn" value="Exit" onmousedown="javascript:popup_cal_out(0);" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="+" class="calc_btn" value="+" onmousedown="javascript:f_calc('calc','+');" />
+		</td>
+	</tr>
+	<tr>
+		<td class="calc_td_btn">
+			<input type="button" id="num7" class="calc_btn" value="7" onmousedown="javascript:add_calc('calc',7);" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="num8" class="calc_btn" value="8" onmousedown="javascript:add_calc('calc',8);" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="num9" class="calc_btn" value="9" onmousedown="javascript:add_calc('calc',9);" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="-" class="calc_btn" value="-" onmousedown="javascript:f_calc('calc','-');" />
+		</td>
+	</tr>
+	<tr>
+		<td class="calc_td_btn">
+			<input type="button" id="num4" class="calc_btn" value="4" onmousedown="javascript:add_calc('calc',4);" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="num5" class="calc_btn" value="5" onmousedown="javascript:add_calc('calc',5);" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="num6" class="calc_btn" value="6" onmousedown="javascript:add_calc('calc',6);" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="x" class="calc_btn" value="x" onmousedown="javascript:f_calc('calc','*');" />
+		</td>
+	</tr>
+	<tr>
+		<td class="calc_td_btn">
+			<input type="button" id="num1" class="calc_btn" value="1" onmousedown="javascript:add_calc('calc',1);" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="num2" class="calc_btn" value="2" onmousedown="javascript:add_calc('calc',2);" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="num3" class="calc_btn" value="3" onmousedown="javascript:add_calc('calc',3);" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="&divide;" class="calc_btn" value="&divide;" onmousedown="javascript:f_calc('calc','/');" />
+		</td>
+	</tr>
+	<tr>
+		<td class="calc_td_btn">
+			<input type="button" id="num0" class="calc_btn" value="0" onmousedown="javascript:add_calc('calc',0);" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="+-" class="calc_btn" value="&plusmn;" onmousedown="javascript:f_calc('calc','+-');" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="," class="calc_btn" value="," onmousedown="javascript:add_calc('calc','.');" />
+		</td>
+		<td class="calc_td_btn">
+			<input type="button" id="=" class="calc_btn" value="=" onmousedown="javascript:f_calc('calc','=');" />
+		</td>
+	</tr>
+</table>
+
+</div>
+
+<div id=popup_vol class=popup>
+	<div id=vol>
+	Numéro du vol
+	<input class=vol type="text" data-vk="capslock"  id=novol   maxlength="6" size="7" /> <br /><br />
+	Aéroport dép.
+	<input class=vol type="text" data-vk="capslock"  id=depart   maxlength="4" size="3" /><br /><br />
+	Aéroport arr.
+	<input class=vol type="text" data-vk="capslock"  id=arrive   maxlength="4" size="3" /><br /><br />
+	</div>
+	<input type=button value=OK  id=ok_vol  class=ok onclick=beep(0);popup_vol_out()>
+</div>
+<div id=popup_scan>
+	<h1>scan</h1>
+	<div id=fleche_anim>
+	Appuyez sur ce bouton
+	<img src=images/fleche_anim.gif>
+	</div>
+	<div id=prodscan> </div>
+	<img src=images/exit.png id=stop onclick=beep(0);popup_scan_out()>
+</div>
+<div id=accueil>
+	<img src=images/enter.jpg  onclick=beep(0);accueil_off(); >
+</div> 
+<div id=popup_printer class=popup>
+	<input type=button value="Check" onclick=check_printer()><br /><br />
+	<input type=button value="New printer" onclick=new_printer()><br /><br />
+	<input type=button value="Test print" onclick=test_print()><br /><br />
+	<img src=images/exit.png id=stop onclick=beep(0);popup_printer_out()>
+</div>
+
+<div id=total_dev onclick=total_dev(1);></div>
+
+	
+
+<script>init_devise();init_rot();liste_cat(0);</script> 
+<object type="youtransactor/sys-plugin" width="0" height="0"></object>
+<object type="youtransactor/imager-plugin" display="none" height=0 width=0></object>
+<object type="youtransactor/bt-plugin" width="0" height="0"></object>
+<div id=formation></div>
+
+</body>
+
