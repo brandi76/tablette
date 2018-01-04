@@ -3,7 +3,8 @@
    //http://www.journaldunet.com/developpeur/pratique/developpement/17902/angular-js-comment-executer-une-fonction-au-chargement-de-la-page.html
 
 -->
-<!-- <html manifest="manifest_devise.mf">  -->
+<!-- <html manifest="manifest_devise.mf">  
+https://github.com/bramski/angular-indexedDB	-->
 
 <html >  
   <head>
@@ -646,26 +647,19 @@
 			$scope.date=date;				
 			$scope.raz_var();
 			$scope.liste_ticket=[];
-			 $indexedDB.openStore('ticket_caisse', function(store){
-      store.getAll().then(function(topics) {  
-        console.log(topics);
-      });
-    });
-		//	$indexedDB.openStore("ticket_caisse",function(store){
-			// store.getAll.then(function(e){
-				//console.log(e);
-				//});
-				/*var find = store.query();
+
+			$indexedDB.openStore("ticket_caisse",function(store){
+				var find = store.query();
 				find = find.$eq($scope.rot);
 				find = find.$index("rot");
 				store.eachWhere(find).then(function(results){
 				    console.log(results);
 					for (var index in results){
 						$scope.liste_ticket.push(results[index]);
-						//if (results[index].sup==1){$scope.liste_ticket[index].sup="bg-danger";}
+						if (results[index].sup==1){$scope.liste_ticket[index].sup="bg-danger";}
 					}
-				});*/
-			//});
+				});
+			});
 			$scope.fenetre("historique");		
 		};
 		$scope.info_vol= function(){
@@ -759,22 +753,20 @@
 					}
 				});
 			});
-		
-			/*$indexedDB.openStore("ticket_caisse",function(store){
-				var find = store.query();
-				find = find.$eq($scope.rot);
-				find = find.$index(["rot"]);
-				store.eachWhere(find).then(function(results){
-						store.delete($scope.rot);
-						for (var index in results){
-							store.insert(results[index]);
+			$indexedDB.openStore('ticket_caisse', function(store){
+				 store.getAllKeys().then(function(e){
+					store.find(e[0]).then(function(topics){
+						// je cherche la cle primaire aautoindexé qui va me servir à supprimer l'element
+						if ((topics.rot==$scope.rot)&&(topics.no_cde==$scope.no_cde_run)){
+							store.delete(e[0]).then(function(){
+								$scope.ticket_caisse.sup=1;
+								store.insert($scope.ticket_caisse);
+								}
+							);
 						}
+					});
 				});
-				//$scope.ticket_caisse.sup=1;
-				//store.insert($scope.ticket_caisse);
-			});*/
-
-			
+			});
 		};
 		$scope.aff_devise=function(debug,mode_paye){
 		   //console.log(debug+" "+mode_paye);
