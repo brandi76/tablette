@@ -32,7 +32,7 @@ https://github.com/bramski/angular-indexedDB	-->
 	app.config(function ($indexedDBProvider) {
 		$indexedDBProvider
 		  .connection('caisse_onboard')
-		  .upgradeDatabase("9", function(event, db, tx){
+		  .upgradeDatabase("10", function(event, db, tx){
 			// pour la mise Ã  jour produit il faut qu'un produit existe
 			if (db.objectStoreNames.contains('ticket_caisse')){db.deleteObjectStore('ticket_caisse')};
 			var objStore = db.createObjectStore('ticket_caisse', {autoIncrement : true});
@@ -89,11 +89,11 @@ https://github.com/bramski/angular-indexedDB	-->
 		$scope.devise_run=1;
 		devise_run=$scope.devise_run;
 		$scope.date=get_date();
-		$scope.liste_caisse={especes:0,cb:0,multidevise:0};
+		$scope.liste_caisse={especes:0,cb:0,multidevise:0,multidevise2:0};
 		$scope.liste_ticket=[];
 		$scope.ticket_run=0;
 		$scope.last_no_cde=0;
-		$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0}};
+		$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0}};
 		$scope.remise=0;
 		$scope.du={montant:0,devise:$scope.devise_run,montantdev:0};
 		$scope.phase="run";
@@ -103,7 +103,7 @@ https://github.com/bramski/angular-indexedDB	-->
 		//$scope.devise=[{cours:1,sigle:"€",precision:2},{cours:3,sigle:"$",precision:2}];
 		//console.log($scope.devise);
 		$scope.arendre={montant:0,devise:1,montantdev:0};				
-		$scope.montant={especes:0,cb:0,multidevise:0,rendu:0};
+		$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0};
 		$scope.vide=false;
 		i=0;
 		$indexedDB.openStore("produit",function(store){
@@ -188,7 +188,7 @@ https://github.com/bramski/angular-indexedDB	-->
 				document.getElementById("signature").style.display="none";
 				$scope.du.montant=$scope.total.ht;
 				$scope.du.montantdev=$scope.total.ht;
-				$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0}};
+				$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0}};
 				$scope.arendre={montant:0,devise:1,montantdev:0};
 			}
 			if (action=="boutique"){
@@ -483,13 +483,15 @@ https://github.com/bramski/angular-indexedDB	-->
 				$scope.date=date;				
 				$scope.especes=[];
 				$scope.multidevise=[];
+				$scope.multidevise2=[];
 				$scope.cb=[];
 				$scope.rendu=0;
 				$scope.solde=[];
-				$scope.montant={especes:0,cb:0,multidevise:0,rendu:0};
+				$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0};
 				$scope.devise.forEach(function(obj,index){
 					$scope.especes.push({devise:index,montant:0,montantdev:0});
 					$scope.multidevise.push({devise:index,montant:0,montantdev:0});
+					$scope.multidevise2.push({devise:index,montant:0,montantdev:0});
 					$scope.cb.push({devise:index,montant:0,montantdev:0});
 					//$scope.rendu.push({devise:index,montant:0,montantdev:0});
 					$scope.solde.push({devise:index,montant:0,montantdev:0});
@@ -499,19 +501,23 @@ https://github.com/bramski/angular-indexedDB	-->
 				find = find.$index("rot");
 				store.eachWhere(find).then(function(e){
 					for (var index in e){
-						$scope.especes[e[index].especes.devise].montantdev+=e[index].especes.montantdev*1;
-						$scope.solde[e[index].especes.devise].montantdev+=e[index].especes.montantdev*1;
-						$scope.cb[e[index].cb.devise].montantdev+=e[index].cb.montantdev*1;
-						$scope.multidevise[e[index].multidevise.devise].montantdev+=e[index].multidevise.montantdev*1;
-						//$scope.rendu[e[index].rendu.devise].montantdev+=e[index].rendu.montantdev*1;
-						//$scope.solde[e[index].rendu.devise].montantdev-=e[index].rendu.montantdev*1;
-						//$scope.rendu[1].montantdev+=e[index].rendu.montantdev*1;
-						$scope.rendu+=e[index].rendu.montantdev*1;
-						$scope.solde[1].montantdev-=e[index].rendu.montantdev*1;
-						$scope.montant.especes+=e[index].especes.montant*1;
-						$scope.montant.multidevise+=e[index].multidevise.montant*1;
-						$scope.montant.cb+=e[index].cb.montant*1;
-						$scope.montant.rendu+=e[index].rendu.montant*1;
+						if (e[index].sup==0){
+							$scope.especes[e[index].especes.devise].montantdev+=e[index].especes.montantdev*1;
+							$scope.solde[e[index].especes.devise].montantdev+=e[index].especes.montantdev*1;
+							$scope.cb[e[index].cb.devise].montantdev+=e[index].cb.montantdev*1;
+							$scope.multidevise[e[index].multidevise.devise].montantdev+=e[index].multidevise.montantdev*1;
+							$scope.multidevise2[e[index].multidevise2.devise].montantdev+=e[index].multidevise2.montantdev*1;
+							//$scope.rendu[e[index].rendu.devise].montantdev+=e[index].rendu.montantdev*1;
+							//$scope.solde[e[index].rendu.devise].montantdev-=e[index].rendu.montantdev*1;
+							//$scope.rendu[1].montantdev+=e[index].rendu.montantdev*1;
+							$scope.rendu+=e[index].rendu.montantdev*1;
+							$scope.solde[1].montantdev-=e[index].rendu.montantdev*1;
+							$scope.montant.especes+=e[index].especes.montant*1;
+							$scope.montant.multidevise+=e[index].multidevise.montant*1;
+							$scope.montant.multidevise2+=e[index].multidevise2.montant*1;
+							$scope.montant.cb+=e[index].cb.montant*1;
+							$scope.montant.rendu+=e[index].rendu.montant*1;
+						}
 				}
 				});
 			});
@@ -594,7 +600,7 @@ https://github.com/bramski/angular-indexedDB	-->
 		$scope.change_dev= function(dev){
 			$scope.devise_run=dev;
 			devise_run=dev;
-			$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0}};
+			$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0}};
 			$scope.du={montant:0,devise:$scope.devise_run,montantdev:0};
 		}	
 		
@@ -619,11 +625,11 @@ https://github.com/bramski/angular-indexedDB	-->
 			$indexedDB.openStore('ticket_caisse', function(store){
 				if ($scope.arendre.montant<0.3){$scope.arendre={montant:0,devise:1,montantdev:0};}
 				JSON.stringify($scope.client);
-				store.insert({rot:$scope.rot,novol:$scope.novol,date:date.jour,no_cde: $scope.no_cde,montant:$scope.total.ht,devise:$scope.devise_run,heure:date.heure,especes:$scope.encaissement.especes,cb:$scope.encaissement.cb,multidevise:$scope.encaissement.multidevise,rendu:$scope.arendre,sup:0,remise_pour:$scope.remise,client:$scope.client});
+				store.insert({rot:$scope.rot,novol:$scope.novol,date:date.jour,no_cde: $scope.no_cde,montant:$scope.total.ht,devise:$scope.devise_run,heure:date.heure,especes:$scope.encaissement.especes,cb:$scope.encaissement.cb,multidevise:$scope.encaissement.multidevise,multidevise2:$scope.encaissement.multidevise2,rendu:$scope.arendre,sup:0,remise_pour:$scope.remise,client:$scope.client});
 				//console.log($scope.rot+" "+$scope.no_cde);
 				js_panier=[];
 				$scope.panier=[];
-				$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0}};
+				$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0}};
 				$scope.total={ttc:0,tva:0,ht:0};
 				$scope.remise=0;
 				$scope.arendre={montant:0,devise:1,montantdev:0};				
@@ -639,8 +645,8 @@ https://github.com/bramski/angular-indexedDB	-->
 			$scope.remise=0;
 			$scope.arendre={montant:0,devise:1,montantdev:0};				
 			$scope.du={montant:0,devise:$scope.devise_run,montantdev:0};				
-			$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0}};
-			$scope.montant={especes:0,cb:0,multidevise:0,rendu:0};
+			$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0}};
+			$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0};
 		}
 		$scope.historique= function(){
 			date=get_date();
@@ -654,6 +660,7 @@ https://github.com/bramski/angular-indexedDB	-->
 				find = find.$index("rot");
 				store.eachWhere(find).then(function(results){
 				    console.log(results);
+					console.log($scope.rot);
 					for (var index in results){
 						$scope.liste_ticket.push(results[index]);
 						if (results[index].sup==1){$scope.liste_ticket[index].sup="bg-danger";}
@@ -702,7 +709,7 @@ https://github.com/bramski/angular-indexedDB	-->
 					}
 				});
 			});
-			$scope.montant={especes:0,cb:0,multidevise:0,rendu:0};
+			$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0};
 			$indexedDB.openStore("ticket_caisse",function(store){
 				var find = store.query();
 				find = find.$eq($scope.rot);
@@ -716,6 +723,7 @@ https://github.com/bramski/angular-indexedDB	-->
 								$scope.devise_run=$scope.ticket_caisse.devise;
 								$scope.encaissement.especes=results[index].especes;
 								$scope.encaissement.multidevise=results[index].multidevise;
+								$scope.encaissement.multidevise2=results[index].multidevise2;
 								$scope.encaissement.cb=results[index].cb;
 								$scope.encaissement.rendu=results[index].rendu;
 								$scope.date.jour=results[index].date;
@@ -767,6 +775,16 @@ https://github.com/bramski/angular-indexedDB	-->
 					});
 				});
 			});
+			$indexedDB.openStore('panier_caisse', function(store){
+				 store.getAllKeys().then(function(e){
+					store.find(e[0]).then(function(topics){
+						// je cherche la cle primaire aautoindexé qui va me servir à supprimer l'element
+						if ((topics.rot==$scope.rot)&&(topics.no_cde==$scope.no_cde_run)){
+							store.delete(e[0]);
+						}
+					});
+				});
+			});
 		};
 		$scope.aff_devise=function(debug,mode_paye){
 		   //console.log(debug+" "+mode_paye);
@@ -794,7 +812,8 @@ https://github.com/bramski/angular-indexedDB	-->
 			$scope.arendre.montantdev=convert($scope.arendre.montant,$scope.devise[1]);
 			if ($scope.encaissement.especes.montant==0){$scope.encaissement.especes.devise=devise;}
 			if ($scope.encaissement.multidevise.montant==0){$scope.encaissement.multidevise.devise=devise;}
-			//if ($scope.encaissement.cb.montant==0){$scope.encaissement.cb.devise=devise;}
+			if ($scope.encaissement.multidevise2.montant==0){$scope.encaissement.multidevise2.devise=devise;}
+						//if ($scope.encaissement.cb.montant==0){$scope.encaissement.cb.devise=devise;}
 		}
 		$scope.maj_paye=function(payment){
 			if (payment=="especes"){
@@ -812,6 +831,12 @@ https://github.com/bramski/angular-indexedDB	-->
 				$scope.encaissement.multidevise.montantdev=parseFloat($scope.du.montantdev)+parseFloat($scope.encaissement.multidevise.montantdev);
 				$scope.encaissement.multidevise.devise=$scope.du.devise;
 			}
+			if (payment=="multidevise2"){
+				$scope.encaissement.multidevise2.montant=parseFloat($scope.du.montant)+parseFloat($scope.encaissement.multidevise2.montant);
+				$scope.encaissement.multidevise2.montantdev=parseFloat($scope.du.montantdev)+parseFloat($scope.encaissement.multidevise2.montantdev);
+				$scope.encaissement.multidevise2.devise=$scope.du.devise;
+			}
+			
 			$scope.du.montant=0;
 			$scope.du.montantdev=0;
 		}
@@ -832,8 +857,11 @@ https://github.com/bramski/angular-indexedDB	-->
 			if (payment=="multidevise"){
 				$scope.encaissement.multidevise.montant=$scope.encaissement.multidevise.montantdev/$scope.devise[$scope.encaissement.multidevise.devise].cours;
 			}
+			if (payment=="multidevise2"){
+				$scope.encaissement.multidevise2.montant=$scope.encaissement.multidevise2.montantdev/$scope.devise[$scope.encaissement.multidevise2.devise].cours;
+			}
 		
-			$scope.du.montant=$scope.total.ht-$scope.encaissement.especes.montant-$scope.encaissement.multidevise.montant-$scope.encaissement.cb.montant;
+			$scope.du.montant=$scope.total.ht-$scope.encaissement.especes.montant-$scope.encaissement.multidevise.montant-$scope.encaissement.multidevise2.montant-$scope.encaissement.cb.montant;
 			
 			if (($scope.du.montant>-0.2)&&($scope.du.montant<0.2)) {$scope.du.montant=0;}
 			//console.log(":"+$scope.du.montant);
@@ -1097,6 +1125,12 @@ https://github.com/bramski/angular-indexedDB	-->
 									<td class="payment_value" ng_if="encaissement.multidevise.devise==du.devise"><input  ng-model="encaissement.multidevise.montantdev" ng-pattern="/^[0-9]{1,7}(\.[0-9]+)?$/" name="anim" class="my-input" aria-describedby="inputDescription" ng-change="maj_du('multidevise')" onfocus="if(this.value == '0')this.value = '';" /></td>
 									<td class="payment_montant" ng_if="encaissement.multidevise.devise==du.devise"><button type="button" class="btn btn-default" ng-click=maj_paye("multidevise")><span class="glyphicon glyphicon-arrow-left"></span> Montant d&ucirc; ({{du.montantdev}})</button></td>
 								</tr>
+								<tr ng-if="encaissement.especes.montant!=0&&encaissement.especes.devise!=du.devise">
+									<td class="payment_title">Esp&egrave;ces</td>
+									<td><nobr>{{aff_devise('encaisse',encaissement.multidevise2)}}</nobr></td>
+									<td class="payment_value" ng_if="encaissement.multidevise2.devise==du.devise"><input  ng-model="encaissement.multidevise2.montantdev" ng-pattern="/^[0-9]{1,7}(\.[0-9]+)?$/" name="anim" class="my-input" aria-describedby="inputDescription" ng-change="maj_du('multidevise2')" onfocus="if(this.value == '0')this.value = '';" /></td>
+									<td class="payment_montant" ng_if="encaissement.multidevise2.devise==du.devise"><button type="button" class="btn btn-default" ng-click=maj_paye("multidevise2")><span class="glyphicon glyphicon-arrow-left"></span> Montant d&ucirc; ({{du.montantdev}})</button></td>
+								</tr>
 
 								<tr>
 									<td class="payment_title">CB</td>
@@ -1202,7 +1236,8 @@ https://github.com/bramski/angular-indexedDB	-->
 							<button class="btn btn-danger pull-right hidden-print" ng-click=sup_ticket()>
 							<span class="glyphicon glyphicon-trash"></span>
 							</button> 
-						
+							<br \>
+							<span ng_if="ticket_caisse.sup==1" class="bg-danger">Ticket Annul&eacute;<br></span>
 							<div style=margin:20px>
 								<button class="btn hidden-print" ng-click=print()>
 									<span class="glyphicon glyphicon-print"></span>
@@ -1269,6 +1304,7 @@ https://github.com/bramski/angular-indexedDB	-->
 							<span ng_if="encaissement.especes.montant!=0">Especes: {{aff_devise('panier',encaissement.especes)}}<br></span>
 							<span ng_if="encaissement.cb.montant>0">Cb: {{aff_devise('panier',encaissement.cb)}}<br></span>
 							<span ng_if="encaissement.multidevise.montant!=0">Especes: {{aff_devise('panier',encaissement.multidevise)}}<br></span>
+							<span ng_if="encaissement.multidevise2.montant!=0">Especes: {{aff_devise('panier',encaissement.multidevise2)}}<br></span>
 							<span ng_if="arendre.montant>0">Rendu: {{aff_arendre(arendre)}}<br></span>
 							Merci et &agrave; bient&ocirc;t<br>	
 							</div>
@@ -1311,6 +1347,7 @@ https://github.com/bramski/angular-indexedDB	-->
 							<span ng_if="encaissement.especes.montant!=0">Especes: {{aff_devise('facture',encaissement.especes)}}<br></span>
 							<span ng_if="encaissement.cb.montant>0">Cb: {{aff_devise('facture',encaissement.cb)}}<br></span>
 							<span ng_if="encaissement.multidevise.montant!=0">Especes: {{aff_devise('facture',encaissement.multidevise)}}<br></span>
+							<span ng_if="encaissement.multidevise2.montant!=0">Especes: {{aff_devise('facture',encaissement.multidevise2)}}<br></span>
 							<span ng_if="arendre.montant>0">Rendu: {{aff_arendre(arendre)}}<br></span>
 							<span ng_if="du.montant>0" style=color:red>du: {{aff_devise('facture',du)}}<br></span>
 							Merci et &agrave; bient&ocirc;t<br>
@@ -1370,7 +1407,7 @@ https://github.com/bramski/angular-indexedDB	-->
 									</tr>
 									</table>
 								</div>
-									<div ng_if="montant.multidevise!=0">
+								<div ng_if="montant.multidevise!=0">
 									<strong>Especes</strong>	
 									<table class="table" style=font-size:0.8em>
 									<tr ng-repeat="case in multidevise" ng_if="case.montantdev!=0">
@@ -1378,6 +1415,15 @@ https://github.com/bramski/angular-indexedDB	-->
 									</tr>
 									</table>
 								</div>
+								<div ng_if="montant.multidevise2!=0">
+									<strong>Especes</strong>	
+									<table class="table" style=font-size:0.8em>
+									<tr ng-repeat="case in multidevise2" ng_if="case.montantdev!=0">
+									<td align=right width=80px>{{aff_devise('etat_caisse',case)}}</td><td>&nbsp;</td><td>&nbsp;</td>
+									</tr>
+									</table>
+								</div>
+							
 								<div ng_if="montant.cb!=0">
 									<strong>Cb</strong>	
 									<table class="table" style=font-size:0.8em>
@@ -1391,20 +1437,21 @@ https://github.com/bramski/angular-indexedDB	-->
 									<thead>
 									  <tr>
 										<th>Produit</th>
-										<th>prix</th>
+										<!-- <th>prix</th> -->
 										<th>Qte</th>
-										<th>Valeur</th>
+										<!-- <th>Valeur</th> -->
 									  </tr>
 									</thead>
 								<tbody>
 								  <tr ng-repeat="x in panier">
 									<td style=font-size:0.8em>{{ x.desi }}</td>
-									<td class="prix">{{ x.prix }}</td>
+									<!-- <td class="prix">{{ x.prix }}</td> -->
 									<td>{{ x.qte }}</td>
-									<td>{{ x.qte*x.prix }}</td>
+									<!-- <td>{{ x.qte*x.prix }}</td> -->
 								  </tr>
 								  <tr>
-								  <td colspan=3><strong>Total</strong></td><td><strong>{{total}}</strong></td></tr>
+								  <!-- <td colspan=3><strong>Total</strong></td><td><strong>{{total}}</strong></td> -->
+								  </tr>
 								</tbody>  
 								</table>
 								<div id=signature_aff style=margin-bottom:20px></div>
