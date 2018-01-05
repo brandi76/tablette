@@ -361,7 +361,7 @@ https://github.com/bramski/angular-indexedDB	-->
 		
 		$scope.add_pnc=function(){
 			$scope.message="";
-		    if ($scope.tri.length==3){
+		    //if ($scope.tri.length==3){
 				var equipage="";
 				$indexedDB.openStore('pnc', function(store){
 					store.delete($scope.rot);
@@ -380,8 +380,8 @@ https://github.com/bramski/angular-indexedDB	-->
 						<!-- console.log(results); -->
 					<!-- }); -->
 				<!-- }); -->
-	      }
-			else {$scope.message="Trigramme Invalide";}
+	    //  }
+			//else {$scope.message="Trigramme Invalide";}
 		}
 		$scope.sup=function(pr_cd_pr){
 			js_panier=js_panier.filter(function(obj){
@@ -530,10 +530,10 @@ https://github.com/bramski/angular-indexedDB	-->
 				store.eachWhere(find).then(function(results){ 
 					var crew=results[0].tri.split(":");
 					crew.forEach(function(obj,index){
-						if (obj.length==3){
+						//if (obj.length==3){
 							$scope.liste_pnc.push({"tri":obj});
 							$scope.message="";
-						}
+						//}
 					});	
 				});	
 			});
@@ -684,9 +684,9 @@ https://github.com/bramski/angular-indexedDB	-->
 				store.eachWhere(find).then(function(results){ 
 					var crew=results[0].tri.split(":");
 					crew.forEach(function(obj,index){
-						if (obj.length==3){
+						//if (obj.length==3){
 							$scope.liste_pnc.push({"tri":obj});
-						}
+						//}
 					});	
 				});	
 			});
@@ -794,7 +794,7 @@ https://github.com/bramski/angular-indexedDB	-->
 		};
 		
 		$scope.aff_arendre=function(arendre){
-			arendre.montantdev=convert_inf(arendre.montant,$scope.devise[1]);
+			//arendre.montantdev=convert_inf(arendre.montant,$scope.devise[$scope.arendre.devise]);
 			var precision=$scope.devise[1].precision;
 			var sigle=$scope.devise[1].sigle;
 			return(accounting.formatNumber(arendre.montantdev,precision," ")+" "+sigle);
@@ -808,8 +808,11 @@ https://github.com/bramski/angular-indexedDB	-->
 		$scope.changedev=function(devise){
 			$scope.du.devise=devise;
 			$scope.du.montantdev=convert($scope.du.montant,$scope.devise[devise]);
-			//$scope.arendre.devise=devise;
-			$scope.arendre.montantdev=convert($scope.arendre.montant,$scope.devise[1]);
+			$scope.arendre.devise=devise;
+			//$scope.arendre.montantdev=100;
+			$scope.arendre.montantdev=convert($scope.arendre.montant,$scope.devise[devise]);
+			//console.log($scope.arendre.montantdev);
+	
 			if ($scope.encaissement.especes.montant==0){$scope.encaissement.especes.devise=devise;}
 			if ($scope.encaissement.multidevise.montant==0){$scope.encaissement.multidevise.devise=devise;}
 			if ($scope.encaissement.multidevise2.montant==0){$scope.encaissement.multidevise2.devise=devise;}
@@ -871,7 +874,8 @@ https://github.com/bramski/angular-indexedDB	-->
 			}
 			$scope.du.montantdev=convert($scope.du.montant,$scope.devise[$scope.du.devise])
 			$scope.arendre.montant=0-$scope.du.montant;
-			$scope.arendre.montantdev=convert_inf($scope.arendre.montant,$scope.devise[1]);
+			$scope.arendre.montantdev=convert_inf($scope.arendre.montant,$scope.devise[$scope.arendre.devise]);
+			console.log($scope.arendre.montantdev,$scope.arendre.devise);
 			if ($scope.du.montant<0){$scope.du.montant=0;$scope.du.montantdev=0;}
 		}
 		$scope.home=function(){
@@ -1138,9 +1142,12 @@ https://github.com/bramski/angular-indexedDB	-->
 									<td class="payment_value"><input ng-if="du.devise==0" ng-model="encaissement.cb.montantdev" ng-pattern="/^[0-9]{1,7}(\.[0-9]+)?$/" class="my-input"  ng-change="maj_du('cb')" onfocus="if(this.value == '0')this.value = '';" /></td>
 									<td class="payment_montant"><button type="button" class="btn btn-default" ng-if="du.devise==0" ng-click=maj_paye("cb") ><span class="glyphicon glyphicon-arrow-left"></span> Montant d&ucirc; ({{du.montantdev}})</button></td>
 								</tr>
+								{{arendre}}
 								<tr ng-if="arendre.montant>0">
 									<td id="payment_change" class="payment_value" colspan="3">
-									A rendre : <span id="payment_change_value_global" class="highlight"><span id="payment_change_value">{{aff_arendre(arendre)}}</td>
+									<!-- A rendre : <span id="payment_change_value_global" class="highlight"><span id="payment_change_value">{{aff_arendre(arendre)}}</td>-->
+									A rendre: <span id="payment_change_value_global" class="highlight"><span id="payment_change_value">{{aff_devise('a rendre',arendre)}}</td>
+								
 								</tr>
 								</tbody>
 								</table>
