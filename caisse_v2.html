@@ -93,7 +93,7 @@ https://github.com/bramski/angular-indexedDB	-->
 		$scope.liste_ticket=[];
 		$scope.ticket_run=0;
 		$scope.last_no_cde=0;
-		$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0}};
+		$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0},rendu:{montant:0,devise:$scope.devise_run,montantdev:0},rendu2:{montant:0,devise:$scope.devise_run,montantdev:0},rendu3:{montant:0,devise:$scope.devise_run,montantdev:0}};
 		$scope.remise=0;
 		$scope.du={montant:0,devise:$scope.devise_run,montantdev:0};
 		$scope.phase="run";
@@ -103,7 +103,7 @@ https://github.com/bramski/angular-indexedDB	-->
 		//$scope.devise=[{cours:1,sigle:"€",precision:2},{cours:3,sigle:"$",precision:2}];
 		//console.log($scope.devise);
 		$scope.arendre={montant:0,devise:1,montantdev:0};				
-		$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0};
+		$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0,rendu2:0,rendu3:0};
 		$scope.vide=false;
 		i=0;
 		$indexedDB.openStore("produit",function(store){
@@ -188,9 +188,10 @@ https://github.com/bramski/angular-indexedDB	-->
 				document.getElementById("signature").style.display="none";
 				$scope.du.montant=$scope.total.ht;
 				$scope.du.montantdev=$scope.total.ht;
-				$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0}};
+				$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0},rendu:{montant:0,devise:$scope.devise_run,montantdev:0},rendu2:{montant:0,devise:$scope.devise_run,montantdev:0},rendu3:{montant:0,devise:$scope.devise_run,montantdev:0}};
 				$scope.arendre={montant:0,devise:1,montantdev:0};
 			}
+			
 			if (action=="boutique"){
 				document.getElementById("historique").style.display="none";
 				document.getElementById("signature").style.display="none";
@@ -487,7 +488,7 @@ https://github.com/bramski/angular-indexedDB	-->
 				$scope.cb=[];
 				$scope.rendu=0;
 				$scope.solde=[];
-				$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0};
+				$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0,rendu2:0,rendu3:0};
 				$scope.devise.forEach(function(obj,index){
 					$scope.especes.push({devise:index,montant:0,montantdev:0});
 					$scope.multidevise.push({devise:index,montant:0,montantdev:0});
@@ -600,7 +601,7 @@ https://github.com/bramski/angular-indexedDB	-->
 		$scope.change_dev= function(dev){
 			$scope.devise_run=dev;
 			devise_run=dev;
-			$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0}};
+			$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0},rendu:{montant:0,devise:$scope.devise_run,montantdev:0},rendu2:{montant:0,devise:$scope.devise_run,montantdev:0},rendu3:{montant:0,devise:$scope.devise_run,montantdev:0}};
 			$scope.du={montant:0,devise:$scope.devise_run,montantdev:0};
 		}	
 		
@@ -629,7 +630,7 @@ https://github.com/bramski/angular-indexedDB	-->
 				//console.log($scope.rot+" "+$scope.no_cde);
 				js_panier=[];
 				$scope.panier=[];
-				$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0}};
+				$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0},rendu:{montant:0,devise:$scope.devise_run,montantdev:0},rendu2:{montant:0,devise:$scope.devise_run,montantdev:0},rendu3:{montant:0,devise:$scope.devise_run,montantdev:0}};
 				$scope.total={ttc:0,tva:0,ht:0};
 				$scope.remise=0;
 				$scope.arendre={montant:0,devise:1,montantdev:0};				
@@ -645,8 +646,8 @@ https://github.com/bramski/angular-indexedDB	-->
 			$scope.remise=0;
 			$scope.arendre={montant:0,devise:1,montantdev:0};				
 			$scope.du={montant:0,devise:$scope.devise_run,montantdev:0};				
-			$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0}};
-			$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0};
+			$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0},rendu:{montant:0,devise:$scope.devise_run,montantdev:0},rendu2:{montant:0,devise:$scope.devise_run,montantdev:0},rendu3:{montant:0,devise:$scope.devise_run,montantdev:0}};
+			$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0,rendu2:0,rendu:3};
 		}
 		$scope.historique= function(){
 			date=get_date();
@@ -709,7 +710,7 @@ https://github.com/bramski/angular-indexedDB	-->
 					}
 				});
 			});
-			$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0};
+			$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0,rendu2:0,rendu3:0};
 			$indexedDB.openStore("ticket_caisse",function(store){
 				var find = store.query();
 				find = find.$eq($scope.rot);
@@ -809,6 +810,7 @@ https://github.com/bramski/angular-indexedDB	-->
 			$scope.du.devise=devise;
 			$scope.du.montantdev=convert($scope.du.montant,$scope.devise[devise]);
 			$scope.arendre.devise=devise;
+			
 			//$scope.arendre.montantdev=100;
 			$scope.arendre.montantdev=convert($scope.arendre.montant,$scope.devise[devise]);
 			//console.log($scope.arendre.montantdev);
@@ -816,6 +818,10 @@ https://github.com/bramski/angular-indexedDB	-->
 			if ($scope.encaissement.especes.montant==0){$scope.encaissement.especes.devise=devise;}
 			if ($scope.encaissement.multidevise.montant==0){$scope.encaissement.multidevise.devise=devise;}
 			if ($scope.encaissement.multidevise2.montant==0){$scope.encaissement.multidevise2.devise=devise;}
+			if ($scope.encaissement.rendu.montant==0){$scope.encaissement.rendu.devise=devise;}
+			if ($scope.encaissement.rendu2.montant==0){$scope.encaissement.rendu2.devise=devise;}
+			if ($scope.encaissement.rendu3.montant==0){$scope.encaissement.rendu3.devise=devise;}
+			
 						//if ($scope.encaissement.cb.montant==0){$scope.encaissement.cb.devise=devise;}
 		}
 		$scope.maj_paye=function(payment){
@@ -845,7 +851,7 @@ https://github.com/bramski/angular-indexedDB	-->
 		}
 		$scope.maj_du=function(payment){
 			//console.log($scope.encaissement.especes.montantdev);
-		
+		   console.log($scope.encaissement.especes);
 		    if (payment=="especes"){
 				$scope.encaissement.especes.montant=$scope.encaissement.especes.montantdev/$scope.devise[$scope.encaissement.especes.devise].cours;
 				if ($scope.devise_run==1){
@@ -876,8 +882,56 @@ https://github.com/bramski/angular-indexedDB	-->
 			$scope.arendre.montant=0-$scope.du.montant;
 			$scope.arendre.montantdev=convert_inf($scope.arendre.montant,$scope.devise[$scope.arendre.devise]);
 			console.log($scope.arendre.montantdev,$scope.arendre.devise);
-			if ($scope.du.montant<0){$scope.du.montant=0;$scope.du.montantdev=0;}
+			if ($scope.du.montant<0){
+				$scope.du.montant=0;
+				$scope.du.montantdev=0;
+				$scope.action="encaisse_rendu";
+			}
 		}
+		$scope.maj_rendu=function(payment){
+		
+			
+			$scope.encaissement.rendu.montantdev=parseFloat($scope.encaissement.rendu.montantdev);
+			$scope.encaissement.rendu2.montantdev=parseFloat($scope.encaissement.rendu2.montantdev);
+			$scope.encaissement.rendu3.montantdev=parseFloat($scope.encaissement.rendu3.montantdev);
+			if (isNaN($scope.encaissement.rendu.montantdev)){$scope.encaissement.rendu.montantdev=0;}
+			if (isNaN($scope.encaissement.rendu2.montantdev)){$scope.encaissement.rendu2.montantdev=0;}
+			if (isNaN($scope.encaissement.rendu3.montantdev)){$scope.encaissement.rendu3.montantdev=0;}
+			
+		    if (payment=="rendu"){
+				$scope.encaissement.rendu.montant=$scope.encaissement.rendu.montantdev/$scope.devise[$scope.encaissement.rendu.devise].cours;
+				if ($scope.devise_run==1){
+					$scope.encaissement.rendu.montant=$scope.encaissement.rendu.montantdev*655.957/$scope.devise[$scope.encaissement.rendu.devise].cours;
+					$scope.encaissement.rendu.montant=Math.ceil($scope.encaissement.rendu.montant/500)*500; // conversion haute
+					
+				}
+			}
+		    if (payment=="rendu2"){
+				$scope.encaissement.rendu2.montant=$scope.encaissement.rendu2.montantdev/$scope.devise[$scope.encaissement.rendu2.devise].cours;
+				if ($scope.devise_run==1){
+					$scope.encaissement.rendu2.montant=$scope.encaissement.rendu2.montantdev*655.957/$scope.devise[$scope.encaissement.rendu2.devise].cours;
+					$scope.encaissement.rendu2.montant=Math.ceil($scope.encaissement.rendu2.montant/500)*500; // conversion haute
+		
+				}
+			}
+			if (payment=="rendu3"){
+				$scope.encaissement.rendu3.montant=$scope.encaissement.rendu3.montantdev/$scope.devise[$scope.encaissement.rendu3.devise].cours;
+				if ($scope.devise_run==1){
+					$scope.encaissement.rendu3.montant=$scope.encaissement.rendu3.montantdev*655.957/$scope.devise[$scope.encaissement.rendu3.devise].cours;
+					$scope.encaissement.rendu3.montant=Math.ceil($scope.encaissement.rendu3.montant/500)*500; // conversion haute
+				}
+			}
+			console.log($scope.encaissement.rendu2);
+			$scope.arendre.montant=$scope.encaissement.rendu.montant+$scope.encaissement.rendu2.montant+$scope.encaissement.rendu3.montant+$scope.total.ht-$scope.encaissement.especes.montant-$scope.encaissement.multidevise.montant-$scope.encaissement.multidevise2.montant-$scope.encaissement.cb.montant;
+			$scope.arendre.montant*=-1;
+			console.log($scope.arendre);
+			if (($scope.arendre.montant>-0.2)&&($scope.arendre.montant<0.2)) {$scope.arendre.montant=0;}
+			if (devise_run==1){
+						$scope.arendre.montant=Math.round(($scope.arendre.montant)/500)*500;
+			}
+			$scope.arendre.montantdev=convert_inf($scope.arendre.montant,$scope.devise[$scope.du.devise])
+		}
+		
 		$scope.home=function(){
 			$scope.fenetre("boutique");
 		};
@@ -892,29 +946,25 @@ https://github.com/bramski/angular-indexedDB	-->
 		}
 		montant_dev=Math.round(montant*cours);
 		if (((devise.sigle=="XOF")||(devise.sigle=="XAF"))&&(devise_run==0)){
-			//montant_dev=Math.round(montant/100*devise.cours)*100;
 			montant_dev=Math.round((montant*655.957+250)/500)*500;
 		}
-		//if (devise.sigle=="XOF"){
-			//montant_dev=Math.round((montant_dev+250)/500)*500;
-		//}
-		
 		return(montant_dev);
 	}
 	function convert_inf(montant,devise){
+		var montant_dev=0;
 		var cours=devise.cours;
 		if (devise_run==1){
 			cours/=655.957;
 		}
-		var montant_dev=0;
-		//console.log(montant+" "+devise.cours);
 		montant_dev=Math.ceil(montant*cours);
 		if (((devise.sigle=="XOF")||(devise.sigle=="XAF"))&&(devise_run==0)){
 			montant_dev=Math.floor((montant*655.957)/500)*500;
 		}
-		else {
-			montant_dev=Math.floor(montant/500)*500;
+		if (devise_run==1){
+			montant=Math.floor(montant/500)*500;
+			// j'ai un doute
 		}
+		console.log(devise_run+" "+montant+" "+montant_dev);
 		if (montant==0){montant_dev=0;}
 		return(montant_dev);
 	}
@@ -1142,7 +1192,6 @@ https://github.com/bramski/angular-indexedDB	-->
 									<td class="payment_value"><input ng-if="du.devise==0" ng-model="encaissement.cb.montantdev" ng-pattern="/^[0-9]{1,7}(\.[0-9]+)?$/" class="my-input"  ng-change="maj_du('cb')" onfocus="if(this.value == '0')this.value = '';" /></td>
 									<td class="payment_montant"><button type="button" class="btn btn-default" ng-if="du.devise==0" ng-click=maj_paye("cb") ><span class="glyphicon glyphicon-arrow-left"></span> Montant d&ucirc; ({{du.montantdev}})</button></td>
 								</tr>
-								{{arendre}}
 								<tr ng-if="arendre.montant>0">
 									<td id="payment_change" class="payment_value" colspan="3">
 									<!-- A rendre : <span id="payment_change_value_global" class="highlight"><span id="payment_change_value">{{aff_arendre(arendre)}}</td>-->
@@ -1167,6 +1216,66 @@ https://github.com/bramski/angular-indexedDB	-->
 							</form>
 							</section>
 						</div>
+						<div class="col-sm-8 hidden-print"  ng-if="action=='encaisse_rendu'" id=encaisse_rendu >
+							<strong>Ticket No:{{no_cde}}</strong>
+						 	<br>
+							<section>
+							<form id="payment_form" name="payment_form" ng-submit="nil()">
+							<div class="btn-group" >
+									<h3>A rendre : <span id="payment_du_value">{{aff_devise('encaisse_rendu',arendre)}}</span></h3>
+									<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+										Devise <span class="caret"></span>
+									</button>
+									<ul class="dropdown-menu">
+										<li><a href="#" ng-click=changedev(0)>Euro</a></li>
+										<!-- <li><a href="#" ng-click=changedev(1)>FCFA</a></li>-->
+										<li><a href="#" ng-click=changedev(2)>Dollar</a></li>
+										<!-- <li><a href="#" ng-click=changedev(3)>Livre</a></li> -->
+										<!--<li><a href="#" ng-click=changedev(4)>Rand</a></li>-->
+										<li><a href="#" ng-click=changedev(1)>XOF</a></li>
+										<li><a href="#" ng-click=changedev(4)>XAF</a></li>
+										
+									</ul>
+							</div>
+							<!-- *{{encaissement}}* -->
+								
+							<table border="0">
+							<tbody>
+								<tr>
+									<td class="payment_title">Rendu Esp&egrave;ces</td>
+									<td><nobr>{{aff_devise('encaisse',encaissement.rendu)}}</nobr></td>
+									<td class="payment_value" ng_if="encaissement.rendu.devise==du.devise"><input  ng-model="encaissement.rendu.montantdev" ng-pattern="/^[0-9]{1,7}(\.[0-9]+)?$/" name="anim" class="my-input" aria-describedby="inputDescription" ng-change="maj_rendu('rendu')"  onfocus="if(this.value == '0')this.value = '';"/></td>
+									<td class="payment_montant" ng_if="encaissement.rendu.devise==du.devise"></td>
+								</tr>
+								<tr ng-if="encaissement.rendu.montant!=0&&encaissement.rendu.devise!=du.devise">
+									<td class="payment_title">Rendu Esp&egrave;ces</td>
+									<td><nobr>{{aff_devise('encaisse',encaissement.rendu2)}}</nobr></td>
+									<td class="payment_value" ng_if="encaissement.rendu2.devise==du.devise"><input  ng-model="encaissement.rendu2.montantdev" ng-pattern="/^[0-9]{1,7}(\.[0-9]+)?$/" name="anim" class="my-input" aria-describedby="inputDescription" ng-change="maj_rendu('rendu2')" onfocus="if(this.value == '0')this.value = '';" /></td>
+									<td class="payment_montant" ng_if="encaissement.rendu2.devise==du.devise"></td>
+								</tr>
+								<tr ng-if="encaissement.rendu2.montant!=0&&encaissement.rendu2.devise!=du.devise">
+									<td class="payment_title">Rendu Esp&egrave;ces</td>
+									<td><nobr>{{aff_devise('encaisse',encaissement.multidevise2)}}</nobr></td>
+									<td class="payment_value" ng_if="encaissement.rendu3.devise==du.devise"><input  ng-model="encaissement.rendu3.montantdev" ng-pattern="/^[0-9]{1,7}(\.[0-9]+)?$/" name="anim" class="my-input" aria-describedby="inputDescription" ng-change="maj_rendu('rendu3')" onfocus="if(this.value == '0')this.value = '';" /></td>
+									<td class="payment_montant" ng_if="encaissement.rendu3.devise==du.devise"></td>
+								</tr>
+								<tr ng-if="arendre.montant>0">
+									<td id="payment_change" class="payment_value" colspan="3">
+									A rendre: <span id="payment_change_value_global" class="highlight"><span id="payment_change_value">{{aff_devise('a rendre',arendre)}}</td>
+								
+								</tr>
+								</tbody>
+								</table>
+								<div ng-if="du.montant==0" class="text-center">
+									<button type="button" class="btn btn-info" ng-click="terminer_cde()"><span class="glyphicon glyphicon-check"></span> Terminer</button>
+									<button type="button" class="btn btn-info" ng-click="terminer_cde('print')"><span class="glyphicon glyphicon-print"></span> Terminer et Imprimer</button>
+								</div>
+								<button type="button" class="btn btn-warning" ng-click="fenetre('boutique')"><span class="glyphicon glyphicon-remove"></span> Annuler</button>
+			
+							</form>
+							</section>
+						</div>
+
 <!-- Fin Paiement -->
 <!-- Historique -->
 						<div class="col-sm-8 hidden-print" id=historique style=display:none>
@@ -1319,7 +1428,7 @@ https://github.com/bramski/angular-indexedDB	-->
 						</div>
 <!-- fin Panier -->
 <!-- Facture -->			
-						<div class="col-sm-4" id=facture ng-if="action=='encaisse' || action=='detail_ticket'">
+						<div class="col-sm-4" id=facture ng-if="action=='encaisse' || action=='detail_ticket' || action=='encaisse_rendu' ">
 						<!--http://www.partage-it.com/faites-bonne-impression-avec-twitter-bootstrap/-->
 							<div style=text-align:center>Le {{date.jour}} {{date.heure}}<br />La boutique Air cote d’Ivoire<br />By Duty Free Concept<br /></div>
 							<span>Vol {{novol}} rot:{{rot}} {{dep}} {{arr}}<br></span>
