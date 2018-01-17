@@ -79,6 +79,7 @@ https://github.com/bramski/angular-indexedDB	-->
 		$scope.infovol=localStorage.getItem("infovol");
 		$scope.total={ttc:0,tva:0,ht:0};
 		$scope.no_cde=0;
+		$scope.nbcb=0;
 		$scope.panier=[];
 		$scope.panierh=[];
 		$scope.produit=[];
@@ -186,15 +187,17 @@ https://github.com/bramski/angular-indexedDB	-->
 				document.getElementById("panier").style.pointerEvents = "none";
 				document.getElementById("panier").style.display = "none";
 				document.getElementById("signature").style.display="none";
+				//document.getElementById("faq").style.display="none";
+		
 				$scope.du.montant=$scope.total.ht;
 				$scope.du.montantdev=$scope.total.ht;
 				$scope.encaissement={especes:{montant:0,devise:$scope.devise_run,montantdev:0},cb:{montant:0,devise:0,montantdev:0},multidevise:{montant:0,devise:$scope.devise_run,montantdev:0},multidevise2:{montant:0,devise:$scope.devise_run,montantdev:0},rendu:{montant:0,devise:$scope.devise_run,montantdev:0},rendu2:{montant:0,devise:$scope.devise_run,montantdev:0},rendu3:{montant:0,devise:$scope.devise_run,montantdev:0}};
 				$scope.arendre={montant:0,devise:1,montantdev:0};
 			}
-			
 			if (action=="boutique"){
 				document.getElementById("historique").style.display="none";
 				document.getElementById("signature").style.display="none";
+				//document.getElementById("faq").style.display="none";
 				document.getElementById("boutique").style.display="block";
 				document.getElementById("boutique").style.pointerEvents = "";
 				document.getElementById("panier").style.display="block";
@@ -202,13 +205,21 @@ https://github.com/bramski/angular-indexedDB	-->
 				document.getElementById("liste_pnc").style.display="none";
 				document.getElementById("appro").style.display="none";
 				$scope.du.devise=$scope.devise_run;
-				
 			}
+			if (action=="faq"){
+				document.getElementById("historique").style.display="none";
+				document.getElementById("signature").style.display="none";
+				document.getElementById("boutique").style.display="none";
+				document.getElementById("panier").style.display="none";
+				document.getElementById("liste_pnc").style.display="none";
+				document.getElementById("appro").style.display="none";
+			}
+
 			if (action=="historique"){
 				document.getElementById("historique").style.display="block";
 				document.getElementById("signature").style.display="none";
-				
-			document.getElementById("boutique").style.display="none";
+				//document.getElementById("faq").style.display="none";
+				document.getElementById("boutique").style.display="none";
 				document.getElementById("panier").style.display = "none";
 				document.getElementById("liste_pnc").style.display="none";
 				document.getElementById("historique").style.pointerEvents = "";
@@ -216,6 +227,7 @@ https://github.com/bramski/angular-indexedDB	-->
 			}
 			if (action=="liste_pnc"){
 				document.getElementById("signature").style.display="none";
+				//document.getElementById("faq").style.display="none";
 				document.getElementById("liste_pnc").style.display="block";
 				document.getElementById("historique").style.display="none";
 				document.getElementById("boutique").style.display="none";
@@ -223,6 +235,7 @@ https://github.com/bramski/angular-indexedDB	-->
 				document.getElementById("liste_pnc").style.pointerEvents = "";
 			}
 			if (action=="appro"){
+				//document.getElementById("faq").style.display="none";
 				document.getElementById("signature").style.display="none";
 				document.getElementById("liste_pnc").style.display="none";
 				document.getElementById("appro").style.display="block";
@@ -234,6 +247,7 @@ https://github.com/bramski/angular-indexedDB	-->
 			
 			if (action=="detail_ticket"){
 				document.getElementById("signature").style.display="none";
+				//document.getElementById("faq").style.display="none";
 				document.getElementById("historique").style.display="none";
 				document.getElementById("boutique").style.display="none";
 				document.getElementById("panier").style.pointerEvents = "none";
@@ -242,23 +256,22 @@ https://github.com/bramski/angular-indexedDB	-->
 			}
 			if (action=="etat_caisse"){
 				document.getElementById("historique").style.display="none";
+				//document.getElementById("faq").style.display="none";
 				document.getElementById("boutique").style.display="none";
 				document.getElementById("boutique").style.pointerEvents = "none";
 				document.getElementById("liste_pnc").style.display="none";
 				document.getElementById("panier").style.display = "none";
 				document.getElementById("signature").style.display = "block";
-				
 			}
 			if (action=="inventaire"){
 				document.getElementById("signature").style.display="none";
+				//document.getElementById("faq").style.display="none";
 				document.getElementById("historique").style.display="none";
 				document.getElementById("boutique").style.display="block";
 				document.getElementById("boutique").style.pointerEvents = "none";
 				document.getElementById("liste_pnc").style.display="none";
 				document.getElementById("panier").style.display = "none";
 			}
-	
-	
 		}
 	
 		$scope.remisef=function(action){
@@ -486,38 +499,63 @@ https://github.com/bramski/angular-indexedDB	-->
 				$scope.multidevise=[];
 				$scope.multidevise2=[];
 				$scope.cb=[];
-				$scope.rendu=0;
+				$scope.cb.push({devise:0,montant:0,montantdev:0});
+				$scope.rendu=[];
+				$scope.rendu2=[];
+				$scope.rendu3=[];
 				$scope.solde=[];
 				$scope.montant={especes:0,cb:0,multidevise:0,multidevise2:0,rendu:0,rendu2:0,rendu3:0};
 				$scope.devise.forEach(function(obj,index){
 					$scope.especes.push({devise:index,montant:0,montantdev:0});
 					$scope.multidevise.push({devise:index,montant:0,montantdev:0});
 					$scope.multidevise2.push({devise:index,montant:0,montantdev:0});
-					$scope.cb.push({devise:index,montant:0,montantdev:0});
+					$scope.rendu.push({devise:index,montant:0,montantdev:0});
+					$scope.rendu2.push({devise:index,montant:0,montantdev:0});
+					$scope.rendu3.push({devise:index,montant:0,montantdev:0});
+				
+					//$scope.cb.push({devise:index,montant:0,montantdev:0});
 					//$scope.rendu.push({devise:index,montant:0,montantdev:0});
 					$scope.solde.push({devise:index,montant:0,montantdev:0});
 				});
 				var find = store.query();
 				find = find.$eq($scope.rot);
 				find = find.$index("rot");
+				$scope.nbcb=0;
 				store.eachWhere(find).then(function(e){
 					for (var index in e){
 						if (e[index].sup==0){
+							//$scope.cb[e[index].cb.devise].montantdev+=e[index].cb.montantdev*1;
+							
 							$scope.especes[e[index].especes.devise].montantdev+=e[index].especes.montantdev*1;
+							//$scope.multidevise[e[index].multidevise.devise].montantdev+=e[index].multidevise.montantdev*1;
+							//$scope.multidevise2[e[index].multidevise2.devise].montantdev+=e[index].multidevise2.montantdev*1;
+							$scope.rendu[e[index].rendu.devise].montantdev+=e[index].rendu.montantdev*1;
+							$scope.rendu2[e[index].rendu.devise].montantdev+=e[index].rendu2.montantdev*1;
+							$scope.rendu3[e[index].rendu.devise].montantdev+=e[index].rendu3.montantdev*1;
+							
 							$scope.solde[e[index].especes.devise].montantdev+=e[index].especes.montantdev*1;
-							$scope.cb[e[index].cb.devise].montantdev+=e[index].cb.montantdev*1;
-							$scope.multidevise[e[index].multidevise.devise].montantdev+=e[index].multidevise.montantdev*1;
-							$scope.multidevise2[e[index].multidevise2.devise].montantdev+=e[index].multidevise2.montantdev*1;
-							//$scope.rendu[e[index].rendu.devise].montantdev+=e[index].rendu.montantdev*1;
-							//$scope.solde[e[index].rendu.devise].montantdev-=e[index].rendu.montantdev*1;
+							$scope.solde[e[index].rendu.devise].montantdev-=e[index].rendu.montantdev*1;
+							$scope.solde[e[index].rendu2.devise].montantdev-=e[index].rendu2.montantdev*1;
+							$scope.solde[e[index].rendu3.devise].montantdev-=e[index].rendu3.montantdev*1;
+							$scope.solde[e[index].multidevise.devise].montantdev+=e[index].multidevise.montantdev*1;
+							$scope.solde[e[index].multidevise2.devise].montantdev+=e[index].multidevise2.montantdev*1;
+							//console.log($scope.solde[1].montantdev);
+							
 							//$scope.rendu[1].montantdev+=e[index].rendu.montantdev*1;
-							$scope.rendu+=e[index].rendu.montantdev*1;
-							$scope.solde[1].montantdev-=e[index].rendu.montantdev*1;
-							$scope.montant.especes+=e[index].especes.montant*1;
-							$scope.montant.multidevise+=e[index].multidevise.montant*1;
-							$scope.montant.multidevise2+=e[index].multidevise2.montant*1;
-							$scope.montant.cb+=e[index].cb.montant*1;
-							$scope.montant.rendu+=e[index].rendu.montant*1;
+							//$scope.rendu+=e[index].rendu.montantdev*1;
+							
+							//$scope.solde[1].montantdev-=e[index].rendu.montantdev*1;
+							//$scope.montant.especes+=e[index].especes.montant*1;
+							//$scope.montant.multidevise+=e[index].multidevise.montant*1;
+							//$scope.montant.multidevise2+=e[index].multidevise2.montant*1;
+							if (e[index].cb.montant*1>0){
+								$scope.montant.cb+=e[index].cb.montantdev*1;
+								$scope.cb[$scope.nbcb].montant+=e[index].cb.montantdev*1;
+								$scope.cb[$scope.nbcb].montantdev+=e[index].cb.montantdev*1;
+								$scope.nbcb++;
+							}		
+							//$scope.montant.rendu+=e[index].rendu.montant*1;
+							
 						}
 				}
 				});
@@ -624,9 +662,9 @@ https://github.com/bramski/angular-indexedDB	-->
 				}
 			});
 			$indexedDB.openStore('ticket_caisse', function(store){
-				if ($scope.arendre.montant<0.3){$scope.arendre={montant:0,devise:1,montantdev:0};}
+				//if ($scope.arendre.montant<0.3){$scope.arendre={montant:0,devise:1,montantdev:0};}
 				JSON.stringify($scope.client);
-				store.insert({rot:$scope.rot,novol:$scope.novol,date:date.jour,no_cde: $scope.no_cde,montant:$scope.total.ht,devise:$scope.devise_run,heure:date.heure,especes:$scope.encaissement.especes,cb:$scope.encaissement.cb,multidevise:$scope.encaissement.multidevise,multidevise2:$scope.encaissement.multidevise2,rendu:$scope.arendre,sup:0,remise_pour:$scope.remise,client:$scope.client});
+				store.insert({rot:$scope.rot,novol:$scope.novol,date:date.jour,no_cde: $scope.no_cde,montant:$scope.total.ht,devise:$scope.devise_run,heure:date.heure,especes:$scope.encaissement.especes,cb:$scope.encaissement.cb,multidevise:$scope.encaissement.multidevise,multidevise2:$scope.encaissement.multidevise2,rendu:$scope.encaissement.rendu,rendu2:$scope.encaissement.rendu2,rendu3:$scope.encaissement.rendu3,sup:0,remise_pour:$scope.remise,client:$scope.client});
 				//console.log($scope.rot+" "+$scope.no_cde);
 				js_panier=[];
 				$scope.panier=[];
@@ -935,6 +973,10 @@ https://github.com/bramski/angular-indexedDB	-->
 		$scope.home=function(){
 			$scope.fenetre("boutique");
 		};
+		$scope.faq=function(){
+			$scope.fenetre("faq");
+		};
+		
 		
 	});
 	
@@ -1094,6 +1136,9 @@ https://github.com/bramski/angular-indexedDB	-->
 									<a href="#" style=margin:1px ng-click="q='Bijouterie'">Bijouterie</a>
 								</li>
 								<li>
+									<a href="#" style=margin:1px ng-click="faq()">FAQ</a>
+								</li>
+								<li>
 							</ul>
 						</nav>	
 <!-- Boutique -->
@@ -1216,6 +1261,7 @@ https://github.com/bramski/angular-indexedDB	-->
 							</form>
 							</section>
 						</div>
+						
 						<div class="col-sm-8 hidden-print"  ng-if="action=='encaisse_rendu'" id=encaisse_rendu >
 							<strong>Ticket No:{{no_cde}}</strong>
 						 	<br>
@@ -1262,11 +1308,10 @@ https://github.com/bramski/angular-indexedDB	-->
 								<tr ng-if="arendre.montant>0">
 									<td id="payment_change" class="payment_value" colspan="3">
 									A rendre: <span id="payment_change_value_global" class="highlight"><span id="payment_change_value">{{aff_devise('a rendre',arendre)}}</td>
-								
 								</tr>
 								</tbody>
 								</table>
-								<div ng-if="du.montant==0" class="text-center">
+								{{arendre.montant}}.montant==0" class="text-center">
 									<button type="button" class="btn btn-info" ng-click="terminer_cde()"><span class="glyphicon glyphicon-check"></span> Terminer</button>
 									<button type="button" class="btn btn-info" ng-click="terminer_cde('print')"><span class="glyphicon glyphicon-print"></span> Terminer et Imprimer</button>
 								</div>
@@ -1275,7 +1320,7 @@ https://github.com/bramski/angular-indexedDB	-->
 							</form>
 							</section>
 						</div>
-
+<!-- Fin rendu -->
 <!-- Fin Paiement -->
 <!-- Historique -->
 						<div class="col-sm-8 hidden-print" id=historique style=display:none>
@@ -1315,7 +1360,7 @@ https://github.com/bramski/angular-indexedDB	-->
 <!-- Fin historique -->
 <!-- Signature -->
 						<div class="col-sm-8 hidden-print" id=signature style=display:none>
-						 	<button type="button" class="btn btn-success pull-right hidden-print" ng-click="fenetre('boutique')"><span class="glyphicon glyphicon-shopping-cart"></span> Retour Boutique</button>
+						 	<!-- <button type="button" class="btn btn-success pull-right hidden-print" ng-click="fenetre('boutique')"><span class="glyphicon glyphicon-shopping-cart"></span> Retour Boutique</button> -->
 							<div id="zone_signature" style="height:250px;width:500px;border:1px solid black;background-color:lighgray;font-size:40px"></div><br />
 							<button onclick=reset_sign() class="btn btn-secondary">Reset</button>
 							<button onclick=affiche() class="btn btn-success">Submit</button>
@@ -1421,7 +1466,10 @@ https://github.com/bramski/angular-indexedDB	-->
 							<span ng_if="encaissement.cb.montant>0">Cb: {{aff_devise('panier',encaissement.cb)}}<br></span>
 							<span ng_if="encaissement.multidevise.montant!=0">Especes: {{aff_devise('panier',encaissement.multidevise)}}<br></span>
 							<span ng_if="encaissement.multidevise2.montant!=0">Especes: {{aff_devise('panier',encaissement.multidevise2)}}<br></span>
-							<span ng_if="arendre.montant>0">Rendu: {{aff_arendre(arendre)}}<br></span>
+							<!--<span ng_if="arendre.montant>0">Rendu: {{aff_arendre(arendre)}}<br></span> -->
+							<span ng_if="encaissement.rendu.montant>0">Rendu: {{aff_devise('panier',encaissement.rendu)}}<br></span>
+							<span ng_if="encaissement.rendu2.montant!=0">Rendu: {{aff_devise('panier',encaissement.rendu2)}}<br></span>
+							<span ng_if="encaissement.rendu3.montant!=0">Rendu: {{aff_devise('panier',encaissement.rendu3)}}<br></span>
 							Merci et &agrave; bient&ocirc;t<br>	
 							</div>
 							<button type="button" class="btn btn-success hidden-print" ng_if="total.ht!=0" ng_click="fenetre('encaisse')"><span class="glyphicon glyphicon-ok"></span> Valider le ticket</button>
@@ -1464,8 +1512,12 @@ https://github.com/bramski/angular-indexedDB	-->
 							<span ng_if="encaissement.cb.montant>0">Cb: {{aff_devise('facture',encaissement.cb)}}<br></span>
 							<span ng_if="encaissement.multidevise.montant!=0">Especes: {{aff_devise('facture',encaissement.multidevise)}}<br></span>
 							<span ng_if="encaissement.multidevise2.montant!=0">Especes: {{aff_devise('facture',encaissement.multidevise2)}}<br></span>
-							<span ng_if="arendre.montant>0">Rendu: {{aff_arendre(arendre)}}<br></span>
+							<span ng_if="arendre.montant>0&&encaissement.rendu.montant<=0">Rendu: {{aff_arendre(arendre)}}<br></span>
 							<span ng_if="du.montant>0" style=color:red>du: {{aff_devise('facture',du)}}<br></span>
+							<span ng_if="encaissement.rendu.montant>0">Rendu: {{aff_devise('panier',encaissement.rendu)}}<br></span>
+							<span ng_if="encaissement.rendu2.montant!=0">Rendu: {{aff_devise('panier',encaissement.rendu2)}}<br></span>
+							<span ng_if="encaissement.rendu3.montant!=0">Rendu: {{aff_devise('panier',encaissement.rendu3)}}<br></span>
+							
 							Merci et &agrave; bient&ocirc;t<br>
 							<span style=font-size:8px>R.C.S Paris 524 057 049</span>							
 							</div>
@@ -1512,15 +1564,16 @@ https://github.com/bramski/angular-indexedDB	-->
 								<h4>Le {{date.jour}} {{date.heure}}<br />Vol {{novol}} rot:{{rot}} {{dep}} {{arr}}</h4>
 								Equipage:<span ng-repeat="pnc in liste_pnc">{{pnc.tri}} </span>
 								<hr></hr>
+								<!---
 								<div ng_if="montant.especes!=0">
 									<strong>Especes</strong>	
 									<table class="table" style=font-size:0.8em>
-									<tr ng-repeat="case in solde" ng_if="(case.montantdev!=0 || especes[case.devise].montantdev!=0)&&(case.devise!=1)" >
-									<td align=right>{{aff_devise('etat_caisse',case)}}</td><td>Encaiss&eacute;:{{aff_devise('etat_caisse',especes[case.devise])}}</td>
-									</tr>
-									<tr ng-repeat="case in solde" ng_if="(case.montantdev!=0 || especes[case.devise].montantdev!=0)&&(case.devise==1)">
-									<td align=right>{{aff_devise('etat_caisse',case)}}</td><td>Encaiss&eacute;:{{aff_devise('etat_caisse',especes[case.devise])}}</td><td align=right>Rendu:{{aff_rendu(rendu)}}</td>
-									</tr>
+										<tr ng-repeat="case in solde" ng_if="(case.montantdev!=0 || especes[case.devise].montantdev!=0)&&(case.devise!=1)" >
+											<td align=right>{{aff_devise('etat_caisse',case)}}</td><td>Encaiss&eacute;:{{aff_devise('etat_caisse',especes[case.devise])}}</td>
+										</tr>
+										<tr ng-repeat="case in solde" ng_if="(case.montantdev!=0 || especes[case.devise].montantdev!=0)&&(case.devise==1)">
+											<td align=right>{{aff_devise('etat_caisse',case)}}</td><td>Encaiss&eacute;:{{aff_devise('etat_caisse',especes[case.devise])}}</td><td align=right>Rendu:{{aff_rendu(rendu)}}</td>
+										</tr>
 									</table>
 								</div>
 								<div ng_if="montant.multidevise!=0">
@@ -1539,13 +1592,33 @@ https://github.com/bramski/angular-indexedDB	-->
 									</tr>
 									</table>
 								</div>
-							
+								-->
+								<strong>Especes</strong>	
+								<table class="table" style=font-size:0.8em>
+								
+										<tr ng-repeat="case in solde" ng_if="case.montantdev!=0">
+											<td align=right>{{aff_devise('etat_caisse',case)}}</td><td>Encaiss&eacute;:{{aff_devise('etat_caisse',especes[case.devise])}}</td><td align=right>Rendu:{{aff_devise('etat_caisse',rendu[case.devise])}}</td>
+										</tr>
+									
+							<!--		<tr ng-repeat="dev in devise" >
+										<td align=right>{{$index}} {{dev.sigle}}</td>
+										<td align=right>{{solde[$index].montantdev}}</td>
+										
+									</tr>-->
+								</table>
+								
 								<div ng_if="montant.cb!=0">
 									<strong>Cb</strong>	
 									<table class="table" style=font-size:0.8em>
-									<tr ng-repeat="case in cb" ng_if="case.montantdev!=0">
-									<td align=right  width=80px>{{aff_devise('etat_caisse',case)}}</td></td><td>&nbsp;</td><td>&nbsp;</td>
+									<!-- au cas ou il faut le detail 
+										<tr ng-repeat="case in cb" ng_if="case.montantdev!=0">
+										<td align=right  width=80px>{{aff_devise('etat_caisse',case)}}</td></td><td>&nbsp;</td><td>&nbsp;</td>
+										</tr>
+									-->
+									<tr >
+										<td align=right  width=80px>Nb {{nbcb}}</td><td align=right >{{montant.cb}} Eu</td><td>&nbsp;</td>
 									</tr>
+								
 									</table>
 								</div>
 								
@@ -1579,7 +1652,29 @@ https://github.com/bramski/angular-indexedDB	-->
 						 	<button type="button" class="btn btn-success pull-right hidden-print" ng-click="raz_var();fenetre('boutique')"><span class="glyphicon glyphicon-shopping-cart"></span> Retour Boutique</button>
 						</div>
 <!-- fin etat_caisse -->
-
+<!-- faq-->
+						<div class="col-sm-12" id=faq  ng-if="action=='faq'" >
+						<div style=margin-bottom:50px>
+						<button type="button" class="btn btn-success pull-right hidden-print" ng-click="fenetre('boutique')"><span class="glyphicon glyphicon-shopping-cart"></span> Retour Boutique</button>
+						</div>
+						
+						<section>
+							<div style="border:1px solid red;padding:5px">
+							<h3> Tarif XOF , Paiement XOF Rendu en XOF </h3>
+							Saisir le montant donné par le client afin d'obtenir le montant à rendre cliquer sur "terminer et imprimer" <button type="button" class="btn btn-info"><span class="glyphicon glyphicon-print"></span> Terminer et Imprimer</button>
+							</div><br />
+							<div style="border:1px solid red;padding:5px">
+							<h3> Tarif XOF , Paiement XOF Rendu en plusieurs devise </h3>
+							Saisir le montant donné par le client afin d'obtenir le montant à rendre, puis choisir la devise <button type="button" class="btn btn-default ">Devise <span class="caret"></span></button>
+							dans laquelle le client souhaite être remboursé et saisir le montant  <br/>
+							Répéter l'opération jusqu'a ce que le rendu soit arrivé à zero
+							</div><br />
+							<div style="border:1px solid red;padding:5px">
+							<h3> Changer de Tarif </h3>
+							L'icone en bas de page <span class="glyphicon glyphicon-picture"></span> &euro;</button> ou <span class="glyphicon glyphicon-picture"></span> XOF</button> permet de passer du Tarif XOF au Tarif Eur, <strong>le tarif choisi est à demander au client avant la vente </strong>
+							</div><br />
+						</section>
+						</siv>	
 
 					</div> 
 <!-- FIN CONTENU -->		
